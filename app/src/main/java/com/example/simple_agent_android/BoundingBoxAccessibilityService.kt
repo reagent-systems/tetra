@@ -26,6 +26,8 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.ImageView
 import android.app.AlertDialog
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
     private var overlay: BoundingBoxOverlayView? = null
@@ -74,6 +76,9 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
         fun getInteractiveElementsJson(): String {
             return InteractiveElementUtils.getInteractiveElementsJson(instance)
+        }
+        fun simulatePressAt(x: Int, y: Int) {
+            instance?.simulatePress(x, y)
         }
     }
 
@@ -233,5 +238,15 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             overlay = null
         }
         removeFloatingButton()
+    }
+
+    fun simulatePress(x: Int, y: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+                .build()
+            dispatchGesture(gesture, null, null)
+        }
     }
 } 
