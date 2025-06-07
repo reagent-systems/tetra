@@ -33,10 +33,23 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private val serverStarted = AtomicBoolean(false)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!serverStarted.getAndSet(true)) {
+            Thread {
+                try {
+                    AgentApiServer().start()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }.start()
+        }
         enableEdgeToEdge()
         setContent {
             SimpleAgentAndroidTheme {

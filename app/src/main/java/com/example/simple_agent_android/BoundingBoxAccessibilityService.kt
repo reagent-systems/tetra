@@ -28,6 +28,7 @@ import android.widget.ImageView
 import android.app.AlertDialog
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.os.Bundle
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
     private var overlay: BoundingBoxOverlayView? = null
@@ -37,7 +38,7 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         override fun run() {
             val root = rootInActiveWindow
             overlay?.updateBoundingBoxes(root)
-            handler.postDelayed(this, 200)
+            handler.postDelayed(this, 50)
         }
     }
     private var floatingButton: ImageView? = null
@@ -79,6 +80,9 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
         fun simulatePressAt(x: Int, y: Int) {
             instance?.simulatePress(x, y)
+        }
+        fun setTextAt(x: Int, y: Int, text: String) {
+            instance?.setTextAtInternal(x, y, text)
         }
     }
 
@@ -248,5 +252,33 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                 .build()
             dispatchGesture(gesture, null, null)
         }
+    }
+
+    fun setTextAtInternal(x: Int, y: Int, text: String) {
+        val root = rootInActiveWindow ?: return
+        val node = findEditableNodeAt(root, x, y)
+        if (node != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val args = Bundle()
+                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            } else {
+                // Fallback: try focus and paste (not as reliable)
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            }
+        }
+    }
+
+    private fun findEditableNodeAt(node: AccessibilityNodeInfo, x: Int, y: Int): AccessibilityNodeInfo? {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        if (rect.contains(x, y) && node.isEditable) {
+            return node
+        }
+        for (i in 0 until node.childCount) {
+            val result = node.getChild(i)?.let { findEditableNodeAt(it, x, y) }
+            if (result != null) return result
+        }
+        return null
     }
 } 

@@ -16,6 +16,7 @@ class BoundingBoxOverlayView(context: Context) : View(context) {
     }
     private var boundingBoxes: List<Rect> = emptyList()
     private val offset = 2 // px offset for better alignment
+    private val maxDrawBoxes = 100
 
     fun updateBoundingBoxes(root: AccessibilityNodeInfo?) {
         val boxes = mutableListOf<Rect>()
@@ -43,7 +44,8 @@ class BoundingBoxOverlayView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        for (rect in boundingBoxes) {
+        for (i in 0 until minOf(boundingBoxes.size, maxDrawBoxes)) {
+            val rect = boundingBoxes[i]
             canvas.drawRect(rect, paint)
         }
     }
