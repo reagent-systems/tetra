@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Simple-Agent-Android</string>
+    <string name="enable_accessibility_service">Enable Accessibility Service</string>
+    <string name="start_overlay">Start Overlay</string>
+    <string name="accessibility_service_description">Service to draw bounding boxes around UI elements.</string>
+</resources>
