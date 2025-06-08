@@ -22,6 +22,19 @@ object InteractiveElementUtils {
             return "" to ""
         }
 
+        fun getAllDescendantTexts(node: AccessibilityNodeInfo?): List<String> {
+            val result = mutableListOf<String>()
+            if (node == null) return result
+            val text = node.text?.toString() ?: ""
+            val desc = node.contentDescription?.toString() ?: ""
+            if (text.isNotEmpty()) result.add(text)
+            if (desc.isNotEmpty()) result.add(desc)
+            for (i in 0 until node.childCount) {
+                result.addAll(getAllDescendantTexts(node.getChild(i)))
+            }
+            return result
+        }
+
         fun collect(node: AccessibilityNodeInfo?) {
             if (node == null) return
             if (node.packageName == "com.example.simple_agent_android") return
@@ -48,6 +61,8 @@ object InteractiveElementUtils {
                 obj.put("y", rect.top)
                 obj.put("width", rect.width())
                 obj.put("height", rect.height())
+                val childrenTexts = getAllDescendantTexts(node)
+                if (childrenTexts.isNotEmpty()) obj.put("childrenText", JSONArray(childrenTexts))
                 elements.add(obj)
             }
             for (i in 0 until node.childCount) {
