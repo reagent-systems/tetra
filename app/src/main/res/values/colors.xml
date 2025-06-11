@@ -7,4 +7,25 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="neon_blue">#00F0FF</color>
+    <color name="neon_purple">#A259FF</color>
+    <color name="neon_cyan">#00FFC6</color>
+    <color name="neon_magenta">#FF29C3</color>
+    <color name="neon_yellow">#FFF500</color>
+    <color name="background_dark">#181A20</color>
+    <color name="surface_dark">#23263A</color>
+    <color name="card_dark">#23263A</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#A0A0A0</color>
+    <color name="gradient_start">#00F0FF</color>
+    <color name="gradient_end">#A259FF</color>
+    <color name="reagent_black">#10151A</color>
+    <color name="reagent_dark">#181C20</color>
+    <color name="reagent_green">#00FF66</color>
+    <color name="reagent_blue">#0099FF</color>
+    <color name="reagent_gray">#A0A0A0</color>
+    <color name="reagent_white">#FFFFFF</color>
+    <color name="reagent_status_online">#00FF66</color>
+    <color name="reagent_status_offline">#FF3B3B</color>
+    <color name="reagent_status_idle">#A0A0A0</color>
 </resources>

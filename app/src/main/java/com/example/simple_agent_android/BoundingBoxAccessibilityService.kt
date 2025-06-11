@@ -41,19 +41,20 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             handler.postDelayed(this, 50)
         }
     }
-    private var floatingButton: ImageView? = null
-    private var floatingButtonParams: WindowManager.LayoutParams? = null
+    private var stopButton: ImageView? = null
+    private var stopButtonParams: WindowManager.LayoutParams? = null
     private var initialX = 0
     private var initialY = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
-    private var isDialogOpen = false
 
     companion object {
         private var instance: BoundingBoxAccessibilityService? = null
         private var verticalOffset: Int = 0
-        fun startOverlay() {
-            instance?.showOverlay()
+        private var overlayEnabled: Boolean = true
+        fun startOverlay(showBoxes: Boolean = true) {
+            overlayEnabled = showBoxes
+            instance?.showOverlay(showBoxes)
             instance?.handler?.post(instance?.refreshRunnable!!)
         }
         fun stopOverlay() {
@@ -63,6 +64,12 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         fun isOverlayActive(): Boolean {
             return instance?.overlay != null
         }
+        fun setOverlayEnabled(enabled: Boolean) {
+            overlayEnabled = enabled
+            instance?.overlay?.showBoundingBoxes = enabled
+            instance?.overlay?.invalidate()
+        }
+        fun isOverlayEnabled(): Boolean = overlayEnabled
         fun setVerticalOffset(context: android.content.Context, offset: Int) {
             verticalOffset = offset
             val prefs = context.getSharedPreferences("overlay_prefs", MODE_PRIVATE)
@@ -84,6 +91,20 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         fun setTextAt(x: Int, y: Int, text: String) {
             instance?.setTextAtInternal(x, y, text)
         }
+        fun showStopButton() {
+            instance?.showStopButtonInternal()
+        }
+        fun hideStopButton() {
+            instance?.removeStopButton()
+        }
+        fun isServiceEnabled(context: android.content.Context): Boolean {
+            val expectedComponent = context.packageName + "/.BoundingBoxAccessibilityService"
+            val enabledServices = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: return false
+            return enabledServices.split(":").any { it.equals(expectedComponent, ignoreCase = true) }
+        }
     }
 
     override fun onCreate() {
@@ -93,7 +114,12 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        removeOverlay()
+        handler.removeCallbacks(refreshRunnable)
+        windowManager = null
         if (instance == this) instance = null
+        verticalOffset = 0
+        overlayEnabled = true
     }
 
     override fun onServiceConnected() {
@@ -121,13 +147,18 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         removeOverlay()
         handler.removeCallbacks(refreshRunnable)
+        windowManager = null
+        if (instance == this) instance = null
+        verticalOffset = 0
+        overlayEnabled = true
         return super.onUnbind(intent)
     }
 
-    private fun showOverlay() {
+    private fun showOverlay(showBoxes: Boolean = true) {
         if (overlay == null) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
                 overlay = BoundingBoxOverlayView(this)
+                overlay?.showBoundingBoxes = showBoxes
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -139,34 +170,40 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                     PixelFormat.TRANSLUCENT
                 )
                 windowManager?.addView(overlay, params)
-                showFloatingButton()
+                showStopButton()
             }
+        } else {
+            overlay?.showBoundingBoxes = showBoxes
+            overlay?.invalidate()
         }
     }
 
-    private fun showFloatingButton() {
-        if (floatingButton == null) {
-            floatingButton = ImageView(this).apply {
-                setImageResource(android.R.drawable.ic_menu_info_details)
-                setBackgroundColor(Color.argb(180, 255, 255, 255))
+    private fun showStopButtonInternal() {
+        if (stopButton == null) {
+            stopButton = ImageView(this).apply {
+                setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                setBackgroundColor(Color.argb(180, 255, 200, 200))
                 setPadding(24, 24, 24, 24)
+                var wasDragged = false
                 setOnTouchListener { v, event ->
                     when (event.action) {
                         MotionEvent.ACTION_DOWN -> {
-                            initialX = floatingButtonParams?.x ?: 0
-                            initialY = floatingButtonParams?.y ?: 0
+                            initialX = stopButtonParams?.x ?: 0
+                            initialY = stopButtonParams?.y ?: 0
                             initialTouchX = event.rawX
                             initialTouchY = event.rawY
+                            wasDragged = false
                             false
                         }
                         MotionEvent.ACTION_MOVE -> {
                             val dx = (event.rawX - initialTouchX).toInt()
                             val dy = (event.rawY - initialTouchY).toInt()
                             if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                                floatingButtonParams?.x = initialX + dx
-                                floatingButtonParams?.y = initialY + dy
-                                windowManager?.updateViewLayout(floatingButton, floatingButtonParams)
+                                stopButtonParams?.x = initialX + dx
+                                stopButtonParams?.y = initialY + dy
+                                windowManager?.updateViewLayout(stopButton, stopButtonParams)
                                 v.parent.requestDisallowInterceptTouchEvent(true)
+                                wasDragged = true
                                 return@setOnTouchListener true
                             }
                             false
@@ -174,19 +211,17 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                         MotionEvent.ACTION_UP -> {
                             val dx = (event.rawX - initialTouchX).toInt()
                             val dy = (event.rawY - initialTouchY).toInt()
-                            if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-                                v.performClick()
+                            if (!wasDragged && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+                                // Only treat as click if not dragged
+                                com.example.simple_agent_android.agentcore.AgentOrchestrator.stopAgent()
                             }
                             false
                         }
                         else -> false
                     }
                 }
-                setOnClickListener {
-                    showJsonDialog()
-                }
             }
-            floatingButtonParams = WindowManager.LayoutParams(
+            stopButtonParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -200,48 +235,31 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                 x = 50
                 y = 200
             }
-            windowManager?.addView(floatingButton, floatingButtonParams)
+            windowManager?.addView(stopButton, stopButtonParams)
         }
     }
 
-    private fun removeFloatingButton() {
-        floatingButton?.let {
-            windowManager?.removeView(it)
-            floatingButton = null
-        }
-    }
-
-    private fun showJsonDialog() {
-        if (isDialogOpen) return
-        isDialogOpen = true
-        val json = getInteractiveElementsJson()
-        val builder = AlertDialog.Builder(this).apply {
-            setTitle("Interactive Elements JSON")
-            setMessage(json)
-            setPositiveButton("Close") { dialog, _ ->
-                isDialogOpen = false
-                dialog.dismiss()
+    private fun removeStopButton() {
+        stopButton?.let {
+            try {
+                windowManager?.removeView(it)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            setOnDismissListener {
-                isDialogOpen = false
-            }
+            stopButton = null
         }
-        val dialog = builder.create()
-        dialog.window?.setType(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else
-                WindowManager.LayoutParams.TYPE_PHONE
-        )
-        dialog.show()
     }
 
     private fun removeOverlay() {
         overlay?.let {
-            windowManager?.removeView(it)
+            try {
+                windowManager?.removeView(it)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             overlay = null
         }
-        removeFloatingButton()
+        removeStopButton()
     }
 
     fun simulatePress(x: Int, y: Int) {

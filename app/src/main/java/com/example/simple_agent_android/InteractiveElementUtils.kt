@@ -61,6 +61,8 @@ object InteractiveElementUtils {
                 obj.put("y", rect.top)
                 obj.put("width", rect.width())
                 obj.put("height", rect.height())
+                obj.put("center_x", rect.left + rect.width() / 2)
+                obj.put("center_y", rect.top + rect.height() / 2)
                 val childrenTexts = getAllDescendantTexts(node)
                 if (childrenTexts.isNotEmpty()) obj.put("childrenText", JSONArray(childrenTexts))
                 elements.add(obj)

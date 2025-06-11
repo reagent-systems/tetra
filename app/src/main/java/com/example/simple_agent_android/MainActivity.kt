@@ -34,6 +34,52 @@ import androidx.compose.material3.TextButton
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import java.util.concurrent.atomic.AtomicBoolean
+import androidx.compose.material3.OutlinedTextField
+import com.example.simple_agent_android.agentcore.AgentOrchestrator
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Divider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.width
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.example.simple_agent_android.ui.HomeScreen
+import com.example.simple_agent_android.ui.DebugScreen
+import com.example.simple_agent_android.ui.SidebarDrawer
+import com.example.simple_agent_android.ui.SettingsScreen
+import com.example.simple_agent_android.ui.AboutScreen
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -53,82 +99,113 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SimpleAgentAndroidTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(
-                        modifier = Modifier.padding(innerPadding).fillMaxSize(),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        val (serviceEnabled, setServiceEnabled) = remember { mutableStateOf(false) }
-                        val (overlayActive, setOverlayActive) = remember { mutableStateOf(BoundingBoxAccessibilityService.isOverlayActive()) }
-                        var verticalOffset by remember { mutableStateOf(BoundingBoxAccessibilityService.getVerticalOffset(this@MainActivity)) }
-                        Text(text = "Vertical Offset: $verticalOffset px")
-                        Slider(
-                            value = verticalOffset.toFloat(),
-                            onValueChange = {
-                                verticalOffset = it.toInt()
-                                BoundingBoxAccessibilityService.setVerticalOffset(this@MainActivity, verticalOffset)
-                            },
-                            valueRange = -100f..100f,
-                            steps = 200
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = {
-                            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            startActivity(intent)
-                        }) {
-                            Text(text = getString(R.string.enable_accessibility_service))
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        if (!hasOverlayPermission(this@MainActivity)) {
-                            Button(onClick = {
-                                requestOverlayPermission(this@MainActivity)
-                            }) {
-                                Text(text = "Grant Overlay Permission")
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                        Button(onClick = {
-                            if (!hasOverlayPermission(this@MainActivity)) {
-                                requestOverlayPermission(this@MainActivity)
-                            } else {
-                                if (BoundingBoxAccessibilityService.isOverlayActive()) {
-                                    BoundingBoxAccessibilityService.stopOverlay()
-                                    setOverlayActive(false)
+                var drawerOpen by remember { mutableStateOf(false) }
+                var selectedScreen by remember { mutableStateOf("home") }
+                var agentRunning by remember { mutableStateOf(false) }
+                var debugMenuExpanded by remember { mutableStateOf(false) }
+                var overlayActive by remember { mutableStateOf(BoundingBoxAccessibilityService.isOverlayActive()) }
+                var showBoxes by remember { mutableStateOf(true) }
+                var verticalOffset by remember { mutableStateOf(BoundingBoxAccessibilityService.getVerticalOffset(this@MainActivity)) }
+                val prefs = getSharedPreferences("agent_prefs", Context.MODE_PRIVATE)
+                var openAiKey by remember { mutableStateOf(prefs.getString("openai_key", "") ?: "") }
+                var keyVisible by remember { mutableStateOf(false) }
+                var agentInput by remember { mutableStateOf("") }
+                var showJsonDialog by remember { mutableStateOf(false) }
+                var jsonOutput by remember { mutableStateOf("") }
+                var settingsSaved by remember { mutableStateOf(false) }
+                var agentOutput by remember { mutableStateOf("") }
+
+                SidebarDrawer(
+                    drawerOpen = drawerOpen,
+                    onDrawerOpen = { drawerOpen = true },
+                    onDrawerClose = { drawerOpen = false },
+                    selectedScreen = selectedScreen,
+                    onSelectScreen = {
+                        selectedScreen = it
+                        drawerOpen = false
+                        if (it != "settings") settingsSaved = false
+                    },
+                ) {
+                    when (selectedScreen) {
+                        "home" -> HomeScreen(
+                            agentRunning = agentRunning,
+                            onStartAgent = {
+                                if (!hasOverlayPermission(this@MainActivity)) {
+                                    requestOverlayPermission(this@MainActivity)
                                 } else {
-                                    BoundingBoxAccessibilityService.startOverlay()
-                                    setOverlayActive(true)
-                                }
-                            }
-                        }) {
-                            Text(text = if (overlayActive) "Stop Overlay" else getString(R.string.start_overlay))
-                        }
-                        var showJsonDialog by remember { mutableStateOf(false) }
-                        var jsonOutput by remember { mutableStateOf("") }
-                        Button(onClick = {
-                            jsonOutput = BoundingBoxAccessibilityService.getInteractiveElementsJson()
-                            showJsonDialog = true
-                        }) {
-                            Text(text = "Export Interactive Elements as JSON")
-                        }
-                        if (showJsonDialog) {
-                            val scrollState = rememberScrollState()
-                            AlertDialog(
-                                onDismissRequest = { showJsonDialog = false },
-                                title = { Text("Interactive Elements JSON") },
-                                text = {
-                                    Text(
-                                        jsonOutput,
-                                        modifier = Modifier.verticalScroll(scrollState)
+                                    if (!BoundingBoxAccessibilityService.isOverlayActive()) {
+                                        BoundingBoxAccessibilityService.startOverlay(false)
+                                    } else {
+                                        BoundingBoxAccessibilityService.setOverlayEnabled(false)
+                                    }
+                                    agentRunning = true
+                                    agentOutput = ""
+                                    AgentOrchestrator.runAgent(
+                                        instruction = agentInput,
+                                        apiKey = openAiKey,
+                                        context = this@MainActivity,
+                                        onAgentStopped = { agentRunning = false },
+                                        onOutput = { output ->
+                                            agentOutput += output + "\n"
+                                        }
                                     )
-                                },
-                                confirmButton = {
-                                    TextButton(onClick = { showJsonDialog = false }) {
-                                        Text("Close")
+                                }
+                            },
+                            onStopAgent = {
+                                AgentOrchestrator.stopAgent()
+                                agentRunning = false
+                            },
+                            agentInput = agentInput,
+                            onAgentInputChange = { agentInput = it },
+                            onEnableAccessibility = {
+                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                startActivity(intent)
+                            },
+                            agentOutput = agentOutput
+                        )
+                        "debug" -> DebugScreen(
+                            showBoxes = showBoxes,
+                            onToggleBoxes = {
+                                showBoxes = !showBoxes
+                                BoundingBoxAccessibilityService.setOverlayEnabled(showBoxes)
+                            },
+                            overlayActive = overlayActive,
+                            onToggleOverlay = {
+                                if (!hasOverlayPermission(this@MainActivity)) {
+                                    requestOverlayPermission(this@MainActivity)
+                                } else {
+                                    if (BoundingBoxAccessibilityService.isOverlayActive()) {
+                                        BoundingBoxAccessibilityService.stopOverlay()
+                                        overlayActive = false
+                                    } else {
+                                        BoundingBoxAccessibilityService.startOverlay(showBoxes)
+                                        overlayActive = true
                                     }
                                 }
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
+                            },
+                            verticalOffset = verticalOffset,
+                            onVerticalOffsetChange = {
+                                verticalOffset = it
+                                BoundingBoxAccessibilityService.setVerticalOffset(this@MainActivity, verticalOffset)
+                            },
+                            onExportJson = {
+                                jsonOutput = BoundingBoxAccessibilityService.getInteractiveElementsJson()
+                                showJsonDialog = true
+                            },
+                            jsonOutput = if (showJsonDialog) jsonOutput else null,
+                            onCloseJson = { showJsonDialog = false }
+                        )
+                        "settings" -> SettingsScreen(
+                            openAiKey = openAiKey,
+                            onOpenAiKeyChange = { openAiKey = it },
+                            onSave = {
+                                prefs.edit().putString("openai_key", openAiKey).apply()
+                                settingsSaved = true
+                            },
+                            saved = settingsSaved
+                        )
+                        "about" -> AboutScreen()
+                        else -> Box(modifier = Modifier.fillMaxSize())
                     }
                 }
             }
