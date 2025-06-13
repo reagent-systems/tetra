@@ -44,6 +44,48 @@ class LLMClient(private val apiKey: String) {
                     "required" to listOf("x", "y", "text")
                 )
             )
+        ),
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "go_home",
+                "description" to "Go to the home screen (simulate pressing the home button).",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf<String, Any>(),
+                    "required" to listOf<String>()
+                )
+            )
+        ),
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "go_back",
+                "description" to "Simulate pressing the back button.",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf<String, Any>(),
+                    "required" to listOf<String>()
+                )
+            )
+        ),
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "swipe",
+                "description" to "Simulate a swipe gesture from (startX, startY) to (endX, endY) over a duration in ms.",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "startX" to mapOf("type" to "integer", "description" to "Start X coordinate"),
+                        "startY" to mapOf("type" to "integer", "description" to "Start Y coordinate"),
+                        "endX" to mapOf("type" to "integer", "description" to "End X coordinate"),
+                        "endY" to mapOf("type" to "integer", "description" to "End Y coordinate"),
+                        "duration" to mapOf("type" to "integer", "description" to "Duration in ms (default 300)")
+                    ),
+                    "required" to listOf("startX", "startY", "endX", "endY")
+                )
+            )
         )
     ))
 

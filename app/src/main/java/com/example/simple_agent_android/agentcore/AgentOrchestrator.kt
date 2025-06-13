@@ -122,7 +122,6 @@ object AgentOrchestrator {
                                         AgentActions.simulatePressAt(centerX, centerY)
                                     }
                                     lastAction = "Pressed at center ($centerX, $centerY)"
-                                    // Add tool message immediately after assistant message with tool_calls
                                     messages.add(mapOf(
                                         "role" to "tool",
                                         "tool_call_id" to toolCall.getString("id"),
@@ -147,6 +146,50 @@ object AgentOrchestrator {
                                         "content" to "Set text at ($x, $y): $text"
                                     ))
                                     onOutput?.invoke("Set text at ($x, $y): $text")
+                                }
+                                "go_home" -> {
+                                    Log.i(TAG, "Step $step: Going home")
+                                    Handler(Looper.getMainLooper()).post {
+                                        AgentActions.goHome()
+                                    }
+                                    lastAction = "Went home"
+                                    messages.add(mapOf(
+                                        "role" to "tool",
+                                        "tool_call_id" to toolCall.getString("id"),
+                                        "content" to "Went home"
+                                    ))
+                                    onOutput?.invoke("Went home")
+                                }
+                                "go_back" -> {
+                                    Log.i(TAG, "Step $step: Going back")
+                                    Handler(Looper.getMainLooper()).post {
+                                        AgentActions.goBack()
+                                    }
+                                    lastAction = "Went back"
+                                    messages.add(mapOf(
+                                        "role" to "tool",
+                                        "tool_call_id" to toolCall.getString("id"),
+                                        "content" to "Went back"
+                                    ))
+                                    onOutput?.invoke("Went back")
+                                }
+                                "swipe" -> {
+                                    val startX = arguments.getInt("startX")
+                                    val startY = arguments.getInt("startY")
+                                    val endX = arguments.getInt("endX")
+                                    val endY = arguments.getInt("endY")
+                                    val duration = if (arguments.has("duration")) arguments.getLong("duration") else 300L
+                                    Log.i(TAG, "Step $step: Swiping from ($startX, $startY) to ($endX, $endY) duration $duration ms")
+                                    Handler(Looper.getMainLooper()).post {
+                                        AgentActions.swipe(startX, startY, endX, endY, duration)
+                                    }
+                                    lastAction = "Swiped from ($startX, $startY) to ($endX, $endY)"
+                                    messages.add(mapOf(
+                                        "role" to "tool",
+                                        "tool_call_id" to toolCall.getString("id"),
+                                        "content" to "Swiped from ($startX, $startY) to ($endX, $endY)"
+                                    ))
+                                    onOutput?.invoke("Swiped from ($startX, $startY) to ($endX, $endY)")
                                 }
                                 else -> {
                                     Log.e(TAG, "Step $step: Unknown tool call: $name")

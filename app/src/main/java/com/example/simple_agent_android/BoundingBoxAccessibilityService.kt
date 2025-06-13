@@ -110,6 +110,15 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             ) ?: return false
             return enabledServices.split(":").any { it.equals(expectedComponent, ignoreCase = true) }
         }
+        fun goHome() {
+            instance?.goHome()
+        }
+        fun goBack() {
+            instance?.goBack()
+        }
+        fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long = 300) {
+            instance?.swipe(startX, startY, endX, endY, duration)
+        }
     }
 
     override fun onCreate() {
@@ -309,5 +318,26 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             if (result != null) return result
         }
         return null
+    }
+
+    fun goHome() {
+        performGlobalAction(GLOBAL_ACTION_HOME)
+    }
+
+    fun goBack() {
+        performGlobalAction(GLOBAL_ACTION_BACK)
+    }
+
+    fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long = 300) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val path = Path().apply {
+                moveTo(startX.toFloat(), startY.toFloat())
+                lineTo(endX.toFloat(), endY.toFloat())
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+                .build()
+            dispatchGesture(gesture, null, null)
+        }
     }
 } 
