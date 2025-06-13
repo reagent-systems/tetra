@@ -19,6 +19,7 @@ import kotlin.coroutines.coroutineContext
 object AgentOrchestrator {
     private const val TAG = "AGENT_CORE"
     private var agentJob: Job? = null
+    private var paused: Boolean = false
 
     fun runAgent(instruction: String, apiKey: String, context: Context, onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
         agentJob = CoroutineScope(Dispatchers.Default).launch {
@@ -44,6 +45,10 @@ object AgentOrchestrator {
             var lastShouldStop: Boolean = false
             while (step < 10) {
                 coroutineContext.ensureActive()
+                while (paused) {
+                    delay(200)
+                    coroutineContext.ensureActive()
+                }
                 step++
                 // Remove any previous screen JSON user message
                 messages = messages.filterNot { it["role"] == "user" && it["content"]?.startsWith("Current screen JSON:") == true }.toMutableList()
@@ -193,4 +198,16 @@ object AgentOrchestrator {
         Log.i(TAG, "Agent stopped by user.")
         com.example.simple_agent_android.BoundingBoxAccessibilityService.hideStopButton()
     }
+
+    fun pauseAgent() {
+        paused = true
+        Log.i(TAG, "Agent paused by user.")
+    }
+
+    fun resumeAgent() {
+        paused = false
+        Log.i(TAG, "Agent resumed by user.")
+    }
+
+    fun isPaused(): Boolean = paused
 } 

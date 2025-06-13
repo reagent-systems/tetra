@@ -29,6 +29,7 @@ import android.app.AlertDialog
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Bundle
+import com.example.simple_agent_android.ui.floating.FloatingControlsView
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
     private var overlay: BoundingBoxOverlayView? = null
@@ -41,12 +42,16 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             handler.postDelayed(this, 50)
         }
     }
-    private var stopButton: ImageView? = null
-    private var stopButtonParams: WindowManager.LayoutParams? = null
-    private var initialX = 0
-    private var initialY = 0
-    private var initialTouchX = 0f
-    private var initialTouchY = 0f
+    private var floatingControls: FloatingControlsView? = null
+    private var floatingControlsParams: WindowManager.LayoutParams? = null
+    private var isPaused = false
+    private var lastTouchX = 0
+    private var lastTouchY = 0
+    private var dragInitialX = 0
+    private var dragInitialY = 0
+    private var dragInitialTouchX = 0f
+    private var dragInitialTouchY = 0f
+    private var wasDragged = false
 
     companion object {
         private var instance: BoundingBoxAccessibilityService? = null
@@ -179,49 +184,54 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     }
 
     private fun showStopButtonInternal() {
-        if (stopButton == null) {
-            stopButton = ImageView(this).apply {
-                setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-                setBackgroundColor(Color.argb(180, 255, 200, 200))
-                setPadding(24, 24, 24, 24)
-                var wasDragged = false
-                setOnTouchListener { v, event ->
-                    when (event.action) {
+        if (floatingControls == null) {
+            floatingControls = FloatingControlsView(this).apply {
+                onPauseClick = {
+                    if (!wasDragged) {
+                        val currentlyPaused = com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused()
+                        if (currentlyPaused) {
+                            com.example.simple_agent_android.agentcore.AgentOrchestrator.resumeAgent()
+                        } else {
+                            com.example.simple_agent_android.agentcore.AgentOrchestrator.pauseAgent()
+                        }
+                        setPaused(com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused())
+                    }
+                }
+                onStopClick = {
+                    if (!wasDragged) {
+                        com.example.simple_agent_android.agentcore.AgentOrchestrator.stopAgent()
+                    }
+                }
+                onDragEvent = { action, rawX, rawY ->
+                    when (action) {
                         MotionEvent.ACTION_DOWN -> {
-                            initialX = stopButtonParams?.x ?: 0
-                            initialY = stopButtonParams?.y ?: 0
-                            initialTouchX = event.rawX
-                            initialTouchY = event.rawY
-                            wasDragged = false
-                            false
+                            floatingControlsParams?.let { params ->
+                                dragInitialX = params.x
+                                dragInitialY = params.y
+                                dragInitialTouchX = rawX
+                                dragInitialTouchY = rawY
+                                wasDragged = false
+                            }
                         }
                         MotionEvent.ACTION_MOVE -> {
-                            val dx = (event.rawX - initialTouchX).toInt()
-                            val dy = (event.rawY - initialTouchY).toInt()
-                            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                                stopButtonParams?.x = initialX + dx
-                                stopButtonParams?.y = initialY + dy
-                                windowManager?.updateViewLayout(stopButton, stopButtonParams)
-                                v.parent.requestDisallowInterceptTouchEvent(true)
-                                wasDragged = true
-                                return@setOnTouchListener true
+                            floatingControlsParams?.let { params ->
+                                val dx = (rawX - dragInitialTouchX).toInt()
+                                val dy = (rawY - dragInitialTouchY).toInt()
+                                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                                    wasDragged = true
+                                }
+                                params.x = dragInitialX + dx
+                                params.y = dragInitialY + dy
+                                windowManager?.updateViewLayout(floatingControls, params)
                             }
-                            false
                         }
                         MotionEvent.ACTION_UP -> {
-                            val dx = (event.rawX - initialTouchX).toInt()
-                            val dy = (event.rawY - initialTouchY).toInt()
-                            if (!wasDragged && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-                                // Only treat as click if not dragged
-                                com.example.simple_agent_android.agentcore.AgentOrchestrator.stopAgent()
-                            }
-                            false
+                            // nothing needed here
                         }
-                        else -> false
                     }
                 }
             }
-            stopButtonParams = WindowManager.LayoutParams(
+            floatingControlsParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -231,22 +241,23 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.END
+                gravity = Gravity.TOP or Gravity.START
                 x = 50
                 y = 200
             }
-            windowManager?.addView(stopButton, stopButtonParams)
+            floatingControls?.setPaused(com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused())
+            windowManager?.addView(floatingControls, floatingControlsParams)
         }
     }
 
     private fun removeStopButton() {
-        stopButton?.let {
+        floatingControls?.let {
             try {
                 windowManager?.removeView(it)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            stopButton = null
+            floatingControls = null
         }
     }
 
