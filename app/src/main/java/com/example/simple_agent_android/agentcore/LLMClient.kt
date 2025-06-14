@@ -86,6 +86,37 @@ class LLMClient(private val apiKey: String) {
                     "required" to listOf("startX", "startY", "endX", "endY")
                 )
             )
+        ),
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "wait_for",
+                "description" to "Wait for a specified number of milliseconds before continuing.",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "duration_ms" to mapOf("type" to "integer", "description" to "Duration to wait in milliseconds")
+                    ),
+                    "required" to listOf("duration_ms")
+                )
+            )
+        ),
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "wait_for_element",
+                "description" to "Wait until a UI element matching the given criteria appears, or until a timeout is reached.",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "text" to mapOf("type" to "string", "description" to "Text of the element (optional)"),
+                        "contentDescription" to mapOf("type" to "string", "description" to "Content description of the element (optional)"),
+                        "className" to mapOf("type" to "string", "description" to "Class name of the element (optional)"),
+                        "timeout_ms" to mapOf("type" to "integer", "description" to "Timeout in milliseconds (default 5000)")
+                    ),
+                    "required" to listOf("timeout_ms")
+                )
+            )
         )
     ))
 

@@ -88,7 +88,15 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                 }
                 
                 // Add the latest screen JSON as a user message
-                val screenJson = AgentActions.getScreenJson()
+                var screenJson = AgentActions.getScreenJson()
+                var emptyTries = 0
+                while ((screenJson.trim() == "[]" || screenJson.trim().isEmpty()) && emptyTries < 5) {
+                    Log.i(TAG, "Screen JSON is empty, waiting for app to load... (try ${emptyTries+1})")
+                    onOutput?.invoke("Screen is empty, waiting for app to load... (try ${emptyTries+1})")
+                    AgentActions.waitFor(2000) // Wait 2 seconds
+                    screenJson = AgentActions.getScreenJson()
+                    emptyTries++
+                }
                 messages.add(mapOf("role" to "user", "content" to "Current screen JSON: $screenJson"))
                 
                 // Add tool call guidance
@@ -148,6 +156,25 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                     lastAction = "Set text at ($x, $y): $text"
                                     onOutput?.invoke("Set text at ($x, $y): $text")
                                     "Set text at ($x, $y): $text"
+                                }
+                                "wait_for" -> {
+                                    val duration = arguments.getLong("duration_ms")
+                                    Log.i(TAG, "Step $step: Waiting for $duration ms")
+                                    AgentActions.waitFor(duration)
+                                    lastAction = "Waited for $duration ms"
+                                    onOutput?.invoke("Waited for $duration ms")
+                                    "Waited for $duration ms"
+                                }
+                                "wait_for_element" -> {
+                                    val text = if (arguments.has("text")) arguments.optString("text", null) else null
+                                    val contentDescription = if (arguments.has("contentDescription")) arguments.optString("contentDescription", null) else null
+                                    val className = if (arguments.has("className")) arguments.optString("className", null) else null
+                                    val timeout = if (arguments.has("timeout_ms")) arguments.getLong("timeout_ms") else 5000L
+                                    Log.i(TAG, "Step $step: Waiting for element (text=$text, contentDescription=$contentDescription, className=$className) up to $timeout ms")
+                                    val found = AgentActions.waitForElement(text, contentDescription, className, timeout)
+                                    lastAction = if (found) "Element appeared" else "Element not found in $timeout ms"
+                                    onOutput?.invoke(lastAction!!)
+                                    lastAction!!
                                 }
                                 "go_home" -> {
                                     Log.i(TAG, "Step $step: Going home")

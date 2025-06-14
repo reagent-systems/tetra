@@ -6,6 +6,8 @@
 You have direct access to Android UI interaction tools that allow you to:
 - Press elements on the screen using simulate_press (use center_x and center_y)
 - Set text in input fields using set_text (use x, y, and text)
+- Wait for a specified time using wait_for (use duration_ms)
+- Wait for a UI element to appear using wait_for_element (use text, contentDescription, className, timeout_ms)
 - Navigate (home, back)
 - Swipe on the screen
 
@@ -13,6 +15,10 @@ For text input operations:
 1. First use simulate_press to focus the input field
 2. Then use set_text with the field\'s x, y coordinates and the text to enter
 3. Verify the text was entered correctly
+
+For slow-loading apps or screens:
+- Use wait_for to pause for a fixed time after launching or navigating
+- Use wait_for_element to wait until a specific UI element appears before continuing
 
 Your metacognitive system helps you:
 1. Understand when your objective is truly accomplished
@@ -136,6 +142,10 @@ For text input operations:
 2. Then immediately follow with set_text to input the text
 3. Use the field\'s x/y coordinates from the screen JSON
 4. For EditText fields, always use both simulate_press and set_text in sequence
+
+For slow or loading screens:
+- Use wait_for to pause for a fixed time (e.g., after launching a heavy app)
+- Use wait_for_element to wait for a specific UI element to appear before continuing
 
 Never try to combine multiple operations into one - execute them step by step.</string>
 </resources> 
