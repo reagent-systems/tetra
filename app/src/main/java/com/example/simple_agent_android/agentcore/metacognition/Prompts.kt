@@ -1,13 +1,72 @@
 package com.example.simple_agent_android.agentcore.metacognition
 
+import android.content.Context
+import com.example.simple_agent_android.R
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 object Prompts {
-    val systemPrompt = "You are an Android agent. Use the available tools to interact with the phone. Only use the provided tools."
+    private var applicationContext: Context? = null
 
-    val planningPrompt = "Given the user's instruction, create a step-by-step plan and describe what success looks like."
+    fun initialize(context: Context) {
+        applicationContext = context.applicationContext
+    }
 
-    val reflectionPrompt = "Reflect on the last action and the current state. Did the action make progress toward the goal? What should be done next?"
+    private fun getString(resId: Int): String {
+        return applicationContext?.getString(resId) ?: ""
+    }
 
-    val stoppingPrompt = "Based on the plan and progress so far, should the agent stop? Reply with 'yes' or 'no' and explain."
+    private fun getString(resId: Int, vararg formatArgs: Any): String {
+        return applicationContext?.getString(resId, *formatArgs) ?: ""
+    }
 
-    val loopBreakingPrompt = "You seem to be repeating the same action or not making progress. Try a new approach or stop if stuck."
+    val systemPrompt: String
+        get() = getString(R.string.agent_system_prompt)
+
+    val planningPrompt: String
+        get() = getString(R.string.agent_planning_prompt)
+
+    val planningJsonFormat: String
+        get() = getString(R.string.agent_planning_json_format)
+
+    val reflectionPrompt: String
+        get() = getString(R.string.agent_reflection_prompt)
+
+    val reflectionJsonFormat: String
+        get() = getString(R.string.agent_reflection_json_format)
+
+    val stoppingPrompt: String
+        get() = getString(R.string.agent_stopping_prompt)
+
+    val stoppingJsonFormat: String
+        get() = getString(R.string.agent_stopping_json_format)
+
+    val loopBreakingPrompt: String
+        get() = getString(R.string.agent_loop_breaking_prompt)
+
+    val loopBreakingDecisionFormat: String
+        get() = getString(R.string.agent_loop_breaking_decision_format)
+
+    val autoContinueInfinite: String
+        get() = getString(R.string.agent_auto_continue_infinite)
+
+    val autoContinueLimited: String
+        get() = getString(R.string.agent_auto_continue_limited)
+
+    val manualMode: String
+        get() = getString(R.string.agent_manual_mode)
+
+    val toolCallGuidance: String
+        get() = getString(R.string.agent_tool_call_guidance)
+
+    fun getDateReminder(): String {
+        val currentDateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        return getString(R.string.agent_date_reminder, currentDateTime)
+    }
+
+    fun getDateCorrection(): String {
+        val currentDateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val currentYear = LocalDateTime.now().year
+        return getString(R.string.agent_date_correction, currentDateTime, currentYear)
+    }
 } 
