@@ -67,13 +67,27 @@ object LoopDetector {
         // Check if all actions are of the same type (e.g., all presses or all text inputs)
         val actionTypes = lastActions.map { content ->
             when {
-                content["content"]?.contains("press", ignoreCase = true) == true -> "press"
+                content["content"]?.contains("press", ignoreCase = true) == true -> {
+                    if (content["content"]?.contains("EditText", ignoreCase = true) == true) "press_text_field"
+                    else "press"
+                }
                 content["content"]?.contains("text", ignoreCase = true) == true -> "text"
                 content["content"]?.contains("swipe", ignoreCase = true) == true -> "swipe"
                 content["content"]?.contains("home", ignoreCase = true) == true -> "home"
                 content["content"]?.contains("back", ignoreCase = true) == true -> "back"
                 else -> "unknown"
             }
+        }
+
+        // Special handling for text input loops
+        if (actionTypes.all { it == "press_text_field" }) {
+            return LoopAnalysis(
+                isLooping = true,
+                loopType = "text_input_loop",
+                severity = 3, // Higher severity for text input loops
+                count = MAX_SIMILAR_ACTIONS,
+                steps = (toolCalls.size - MAX_SIMILAR_ACTIONS until toolCalls.size).toList()
+            )
         }
 
         if (actionTypes.all { it == actionTypes[0] } && actionTypes[0] != "unknown") {

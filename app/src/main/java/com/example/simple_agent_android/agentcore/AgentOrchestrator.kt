@@ -197,7 +197,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                             ))
 
                             // Small delay to let UI update
-                            delay(500)
+                            delay(1200)
                             coroutineContext.ensureActive()
 
                             // Get the new screen state after the action
