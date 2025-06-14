@@ -19,7 +19,6 @@ import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
 import android.os.Build
 import android.content.Context
 import android.net.Uri
-import java.util.concurrent.atomic.AtomicBoolean
 import com.example.simple_agent_android.agentcore.AgentOrchestrator
 import androidx.compose.foundation.layout.Box
 import com.example.simple_agent_android.ui.HomeScreen
@@ -29,20 +28,8 @@ import com.example.simple_agent_android.ui.SettingsScreen
 import com.example.simple_agent_android.ui.AboutScreen
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        private val serverStarted = AtomicBoolean(false)
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!serverStarted.getAndSet(true)) {
-            Thread {
-                try {
-                    AgentApiServer().start()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }.start()
-        }
         enableEdgeToEdge()
         setContent {
             SimpleAgentAndroidTheme {
