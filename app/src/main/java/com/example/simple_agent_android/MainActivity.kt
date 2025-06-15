@@ -26,10 +26,14 @@ import com.example.simple_agent_android.ui.DebugScreen
 import com.example.simple_agent_android.ui.SidebarDrawer
 import com.example.simple_agent_android.ui.SettingsScreen
 import com.example.simple_agent_android.ui.AboutScreen
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
+    private val TAG = "MainActivity"
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate")
         enableEdgeToEdge()
         setContent {
             SimpleAgentAndroidTheme {
@@ -48,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 var jsonOutput by remember { mutableStateOf("") }
                 var settingsSaved by remember { mutableStateOf(false) }
                 var agentOutput by remember { mutableStateOf("") }
+                var floatingUiEnabled by remember { mutableStateOf(false) }
 
                 SidebarDrawer(
                     drawerOpen = drawerOpen,
@@ -95,7 +100,30 @@ class MainActivity : ComponentActivity() {
                                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                 startActivity(intent)
                             },
-                            agentOutput = agentOutput
+                            agentOutput = agentOutput,
+                            floatingUiEnabled = floatingUiEnabled,
+                            onToggleFloatingUi = {
+                                Log.d(TAG, "Toggle floating UI requested, current state: $floatingUiEnabled")
+                                if (!hasOverlayPermission(this@MainActivity)) {
+                                    Log.d(TAG, "No overlay permission, requesting...")
+                                    requestOverlayPermission(this@MainActivity)
+                                } else {
+                                    try {
+                                        floatingUiEnabled = !floatingUiEnabled
+                                        Log.d(TAG, "New floating UI state: $floatingUiEnabled")
+                                        if (floatingUiEnabled) {
+                                            Log.d(TAG, "Showing floating button")
+                                            BoundingBoxAccessibilityService.showFloatingButton()
+                                        } else {
+                                            Log.d(TAG, "Hiding floating button")
+                                            BoundingBoxAccessibilityService.hideFloatingButton()
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error toggling floating UI", e)
+                                        floatingUiEnabled = false
+                                    }
+                                }
+                            }
                         )
                         "debug" -> DebugScreen(
                             showBoxes = showBoxes,

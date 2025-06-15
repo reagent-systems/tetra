@@ -26,7 +26,6 @@ object AgentOrchestrator {
 
     fun runAgent(instruction: String, apiKey: String, context: Context, onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
         agentJob = CoroutineScope(Dispatchers.Default).launch {
-            com.example.simple_agent_android.BoundingBoxAccessibilityService.showStopButton()
             Log.i(TAG, "Agent started with instruction: $instruction")
             onOutput?.invoke("Agent started with instruction: $instruction")
             delay(1000)
@@ -78,6 +77,17 @@ You have repeated similar actions ${loopAnalysis.count} times across steps: ${lo
 Original instruction: "$instruction"
 
 ${Prompts.loopBreakingDecisionFormat}"""))
+
+                    // Immediately check if we should stop due to the loop
+                    val shouldStopDueToLoop = MetaCognition.shouldStop(messages, apiKey)
+                    if (shouldStopDueToLoop) {
+                        Log.i(TAG, "Step $step: Stopping due to unrecoverable loop")
+                        onOutput?.invoke("Stopping due to unrecoverable loop - unable to make progress")
+                        return@launch
+                    }
+
+                    // If we continue, add a warning about the loop
+                    onOutput?.invoke("⚠️ Warning: In a ${loopAnalysis.loopType} loop - attempting recovery...")
                 }
 
                 // Remove any previous screen JSON user message
@@ -270,7 +280,6 @@ ${Prompts.loopBreakingDecisionFormat}"""))
             }
             Log.i(TAG, "Agent finished.")
             onOutput?.invoke("Agent finished.")
-            com.example.simple_agent_android.BoundingBoxAccessibilityService.hideStopButton()
             onAgentStopped?.invoke()
         }
     }
@@ -278,8 +287,8 @@ ${Prompts.loopBreakingDecisionFormat}"""))
     fun stopAgent() {
         agentJob?.cancel()
         agentJob = null
+        paused = false
         Log.i(TAG, "Agent stopped by user.")
-        com.example.simple_agent_android.BoundingBoxAccessibilityService.hideStopButton()
     }
 
     fun pauseAgent() {

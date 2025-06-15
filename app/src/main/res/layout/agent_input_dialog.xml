@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:minWidth="320dp"
+    android:background="@drawable/rounded_card_bg_dark">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Agent Instruction"
+        android:textColor="@color/reagent_green"
+        android:textStyle="bold"
+        android:textSize="24sp"
+        android:layout_marginBottom="20dp"/>
+
+    <EditText
+        android:id="@+id/et_agent_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter instruction for the agent"
+        android:inputType="textMultiLine"
+        android:minLines="3"
+        android:maxLines="5"
+        android:textSize="16sp"
+        android:textColor="@color/reagent_white"
+        android:textColorHint="@color/reagent_gray"
+        android:background="@null"
+        android:padding="12dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_marginTop="32dp">
+
+        <Button
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="CANCEL"
+            android:textSize="14sp"
+            android:textColor="@color/reagent_gray"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="24dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_start"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:minWidth="120dp"
+            android:text="START"
+            android:textSize="14sp"
+            android:textColor="@color/reagent_black"
+            android:backgroundTint="@color/reagent_green"
+            android:textStyle="bold"
+            app:cornerRadius="12dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp" />
+    </LinearLayout>
+</LinearLayout> 

@@ -30,8 +30,11 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Bundle
 import com.example.simple_agent_android.ui.floating.FloatingControlsView
+import com.example.simple_agent_android.ui.floating.FloatingAgentButton
+import android.util.Log
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
+    private val TAG = "BoundingBoxService"
     private var overlay: BoundingBoxOverlayView? = null
     private var windowManager: WindowManager? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -42,18 +45,11 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             handler.postDelayed(this, 50)
         }
     }
-    private var floatingControls: FloatingControlsView? = null
-    private var floatingControlsParams: WindowManager.LayoutParams? = null
+    private var floatingAgentButton: FloatingAgentButton? = null
     private var isPaused = false
-    private var lastTouchX = 0
-    private var lastTouchY = 0
-    private var dragInitialX = 0
-    private var dragInitialY = 0
-    private var dragInitialTouchX = 0f
-    private var dragInitialTouchY = 0f
-    private var wasDragged = false
 
     companion object {
+        private const val TAG = "BoundingBoxService"
         private var instance: BoundingBoxAccessibilityService? = null
         private var verticalOffset: Int = 0
         private var overlayEnabled: Boolean = true
@@ -96,19 +92,21 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         fun setTextAt(x: Int, y: Int, text: String) {
             instance?.setTextAtInternal(x, y, text)
         }
-        fun showStopButton() {
-            instance?.showStopButtonInternal()
+        fun showFloatingButton() {
+            Log.d(TAG, "Showing floating button requested")
+            if (instance == null) {
+                Log.e(TAG, "Cannot show floating button - service instance is null")
+                return
+            }
+            instance?.showFloatingButtonInternal()
         }
-        fun hideStopButton() {
-            instance?.removeStopButton()
-        }
-        fun isServiceEnabled(context: android.content.Context): Boolean {
-            val expectedComponent = context.packageName + "/.BoundingBoxAccessibilityService"
-            val enabledServices = android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            ) ?: return false
-            return enabledServices.split(":").any { it.equals(expectedComponent, ignoreCase = true) }
+        fun hideFloatingButton() {
+            Log.d(TAG, "Hiding floating button requested")
+            if (instance == null) {
+                Log.e(TAG, "Cannot hide floating button - service instance is null")
+                return
+            }
+            instance?.removeFloatingButton()
         }
         fun goHome() {
             instance?.goHome()
@@ -123,12 +121,15 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "Service onCreate")
         instance = this
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "Service onDestroy")
         super.onDestroy()
         removeOverlay()
+        removeFloatingButton()
         handler.removeCallbacks(refreshRunnable)
         windowManager = null
         if (instance == this) instance = null
@@ -137,6 +138,7 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        Log.d(TAG, "Service onServiceConnected")
         super.onServiceConnected()
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or AccessibilityEvent.TYPE_VIEW_CLICKED or AccessibilityEvent.TYPE_VIEW_FOCUSED
@@ -146,7 +148,7 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
         serviceInfo = info
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        // Do not auto-start overlay here
+        Log.d(TAG, "Service initialized successfully")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -160,6 +162,7 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         removeOverlay()
+        removeFloatingButton()
         handler.removeCallbacks(refreshRunnable)
         windowManager = null
         if (instance == this) instance = null
@@ -184,7 +187,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                     PixelFormat.TRANSLUCENT
                 )
                 windowManager?.addView(overlay, params)
-                showStopButton()
             }
         } else {
             overlay?.showBoundingBoxes = showBoxes
@@ -192,81 +194,72 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun showStopButtonInternal() {
-        if (floatingControls == null) {
-            floatingControls = FloatingControlsView(this).apply {
-                onPauseClick = {
-                    if (!wasDragged) {
+    private fun showFloatingButtonInternal() {
+        try {
+            Log.d(TAG, "Showing floating button internally")
+            if (floatingAgentButton == null) {
+                Log.d(TAG, "Creating new floating button")
+                floatingAgentButton = FloatingAgentButton(this).apply {
+                    setOnStartAgentListener { instruction ->
+                        Log.d(TAG, "Floating button start agent triggered")
+                        if (!hasOverlayPermission(this@BoundingBoxAccessibilityService)) {
+                            Log.d(TAG, "No overlay permission, requesting...")
+                            requestOverlayPermission(this@BoundingBoxAccessibilityService)
+                        } else {
+                            if (!isOverlayActive()) {
+                                Log.d(TAG, "Starting overlay")
+                                startOverlay(false)
+                            } else {
+                                Log.d(TAG, "Setting overlay enabled to false")
+                                setOverlayEnabled(false)
+                            }
+                            Log.d(TAG, "Starting agent with instruction")
+                            com.example.simple_agent_android.agentcore.AgentOrchestrator.runAgent(
+                                instruction = instruction,
+                                apiKey = getSharedPreferences("agent_prefs", MODE_PRIVATE).getString("openai_key", "") ?: "",
+                                context = this@BoundingBoxAccessibilityService,
+                                onAgentStopped = {
+                                    Log.d(TAG, "Agent stopped callback")
+                                    floatingAgentButton?.switchToStartState()
+                                },
+                                onOutput = { output ->
+                                    Log.d(TAG, "Agent output received")
+                                }
+                            )
+                        }
+                    }
+                    setOnPauseAgentListener {
                         val currentlyPaused = com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused()
                         if (currentlyPaused) {
                             com.example.simple_agent_android.agentcore.AgentOrchestrator.resumeAgent()
+                            floatingAgentButton?.setPaused(false)
                         } else {
                             com.example.simple_agent_android.agentcore.AgentOrchestrator.pauseAgent()
+                            floatingAgentButton?.setPaused(true)
                         }
-                        setPaused(com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused())
                     }
-                }
-                onStopClick = {
-                    if (!wasDragged) {
+                    setOnStopAgentListener {
                         com.example.simple_agent_android.agentcore.AgentOrchestrator.stopAgent()
                     }
+                    show()
                 }
-                onDragEvent = { action, rawX, rawY ->
-                    when (action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            floatingControlsParams?.let { params ->
-                                dragInitialX = params.x
-                                dragInitialY = params.y
-                                dragInitialTouchX = rawX
-                                dragInitialTouchY = rawY
-                                wasDragged = false
-                            }
-                        }
-                        MotionEvent.ACTION_MOVE -> {
-                            floatingControlsParams?.let { params ->
-                                val dx = (rawX - dragInitialTouchX).toInt()
-                                val dy = (rawY - dragInitialTouchY).toInt()
-                                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                                    wasDragged = true
-                                }
-                                params.x = dragInitialX + dx
-                                params.y = dragInitialY + dy
-                                windowManager?.updateViewLayout(floatingControls, params)
-                            }
-                        }
-                        MotionEvent.ACTION_UP -> {
-                            // nothing needed here
-                        }
-                    }
-                }
+                Log.d(TAG, "Floating button created and shown")
+            } else {
+                Log.d(TAG, "Floating button already exists")
             }
-            floatingControlsParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                else
-                    WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                x = 50
-                y = 200
-            }
-            floatingControls?.setPaused(com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused())
-            windowManager?.addView(floatingControls, floatingControlsParams)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing floating button", e)
         }
     }
 
-    private fun removeStopButton() {
-        floatingControls?.let {
-            try {
-                windowManager?.removeView(it)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            floatingControls = null
+    private fun removeFloatingButton() {
+        try {
+            Log.d(TAG, "Removing floating button")
+            floatingAgentButton?.hide()
+            floatingAgentButton = null
+            Log.d(TAG, "Floating button removed successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing floating button", e)
         }
     }
 
@@ -279,7 +272,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             }
             overlay = null
         }
-        removeStopButton()
     }
 
     fun simulatePress(x: Int, y: Int) {

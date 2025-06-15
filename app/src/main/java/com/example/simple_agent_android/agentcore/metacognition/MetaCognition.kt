@@ -71,8 +71,25 @@ Please analyze the current state and respond in JSON format:
     "objective_completed": true/false,
     "ui_state_correct": true/false,
     "remaining_interactions": ["Interaction 1", "Interaction 2", ...],
-    "reasoning": "Detailed explanation of decision"
-}"""))
+    "success_criteria_met": ["Criterion 1 met", "Criterion 2 not met", ...],
+    "reasoning": "Detailed explanation of decision",
+    "is_in_loop": {
+        "detected": true/false,
+        "repeated_actions": ["Action 1", "Action 2", ...],
+        "loop_count": 0,
+        "severity": 0
+    },
+    "confidence": 0.0-1.0
+}
+
+Important guidelines:
+1. If the primary objective is achieved (e.g. app opened, content loaded), return should_stop: true
+2. If the same action is repeated more than 2 times without progress, consider it a loop
+3. If no meaningful progress is made in the last 2 steps, consider stopping
+4. If the UI state matches the expected end state, stop even if there are theoretical remaining actions
+5. Prioritize successful completion over exhaustive interaction
+6. If confidence is high (>0.8) that the task is done, stop even if some minor criteria aren't met
+7. If in a loop with severity > 2, strongly consider stopping"""))
         
         val response = llm.sendWithTools(messages)
         Log.i(TAG, "shouldStop response: $response")
@@ -83,7 +100,37 @@ Please analyze the current state and respond in JSON format:
         
         try {
             val json = JSONObject(content)
-            return json.optBoolean("should_stop", false)
+            val shouldStop = json.optBoolean("should_stop", false)
+            val isInLoop = json.optJSONObject("is_in_loop")
+            val objectiveCompleted = json.optBoolean("objective_completed", false)
+            val confidence = json.optDouble("confidence", 0.0)
+            
+            // Stop in any of these cases:
+            // 1. Explicit recommendation to stop
+            // 2. Objective is completed
+            // 3. High confidence (>0.8) that task is done
+            // 4. In a severe loop (severity > 2)
+            if (shouldStop || objectiveCompleted || confidence > 0.8) {
+                Log.i(TAG, "Stopping due to completion: shouldStop=$shouldStop, objectiveCompleted=$objectiveCompleted, confidence=$confidence")
+                return true
+            }
+            
+            // Enhanced loop detection handling
+            if (isInLoop != null && isInLoop.optBoolean("detected", false)) {
+                val severity = isInLoop.optInt("severity", 0)
+                val loopCount = isInLoop.optInt("loop_count", 0)
+                
+                // Stop if:
+                // 1. Loop severity is high (>2)
+                // 2. Loop count is high (>3)
+                // 3. Combination of moderate severity (2) and count (2)
+                if (severity > 2 || loopCount > 3 || (severity >= 2 && loopCount >= 2)) {
+                    Log.i(TAG, "Stopping due to severe loop: severity=$severity, loopCount=$loopCount")
+                    return true
+                }
+            }
+            
+            return false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse shouldStop response as JSON", e)
             return content.trim().lowercase().startsWith("yes")

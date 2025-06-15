@@ -1,31 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/floating_controls_root"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:background="@drawable/rounded_card_bg"
-    android:elevation="8dp"
+    android:background="@android:color/transparent"
     android:padding="4dp"
     android:gravity="center_vertical"
     android:layout_margin="8dp">
 
-    <ImageButton
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_pause"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@android:color/transparent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
         android:src="@android:drawable/ic_media_pause"
         android:contentDescription="Pause Agent"
-        android:tint="@android:color/black" />
+        app:tint="@android:color/white"
+        app:backgroundTint="@android:color/holo_green_light"
+        app:fabSize="mini"
+        android:theme="@style/Theme.MaterialComponents.Light"
+        style="@style/Widget.MaterialComponents.FloatingActionButton"
+        app:elevation="6dp"
+        app:pressedTranslationZ="12dp" />
 
-    <ImageButton
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_stop"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@android:color/transparent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         android:contentDescription="Stop Agent"
-        android:tint="@android:color/black" />
+        app:tint="@android:color/white"
+        app:backgroundTint="@android:color/holo_red_light"
+        app:fabSize="mini"
+        android:theme="@style/Theme.MaterialComponents.Light"
+        style="@style/Widget.MaterialComponents.FloatingActionButton"
+        app:elevation="6dp"
+        app:pressedTranslationZ="12dp" />
 
 </LinearLayout> 

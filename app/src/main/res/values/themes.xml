@@ -2,4 +2,23 @@
 <resources>
 
     <style name="Theme.SimpleAgentAndroid" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.SimpleAgentAndroid.Dialog" parent="Theme.MaterialComponents.Dialog">
+        <item name="android:windowBackground">@drawable/rounded_card_bg_dark</item>
+        <item name="colorPrimary">@color/reagent_green</item>
+        <item name="colorPrimaryVariant">@color/reagent_green</item>
+        <item name="colorOnPrimary">@color/reagent_black</item>
+        <item name="colorSurface">@color/reagent_dark</item>
+        <item name="colorOnSurface">@color/reagent_white</item>
+        <item name="android:textColor">@color/reagent_white</item>
+        <item name="android:textColorHint">@color/reagent_gray</item>
+        <item name="buttonStyle">@style/Widget.SimpleAgentAndroid.Button</item>
+    </style>
+
+    <style name="Widget.SimpleAgentAndroid.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:textColor">@color/reagent_black</item>
+        <item name="backgroundTint">@color/reagent_green</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
 </resources>

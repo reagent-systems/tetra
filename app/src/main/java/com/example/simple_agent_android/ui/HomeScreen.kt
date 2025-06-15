@@ -27,6 +27,8 @@ fun HomeScreen(
     onAgentInputChange: (String) -> Unit,
     onEnableAccessibility: () -> Unit,
     agentOutput: String,
+    floatingUiEnabled: Boolean,
+    onToggleFloatingUi: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -43,6 +45,15 @@ fun HomeScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Enable Accessibility Service", color = ReagentWhite)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onToggleFloatingUi,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = if (floatingUiEnabled) ReagentGreen else ReagentBlue),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(if (floatingUiEnabled) "Disable Floating UI" else "Enable Floating UI", color = ReagentWhite)
         }
         Spacer(modifier = Modifier.height(16.dp))
         Card(
