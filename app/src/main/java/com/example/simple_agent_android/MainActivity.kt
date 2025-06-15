@@ -7,14 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
 import android.os.Build
 import android.content.Context
@@ -27,6 +24,7 @@ import com.example.simple_agent_android.ui.SidebarDrawer
 import com.example.simple_agent_android.ui.SettingsScreen
 import com.example.simple_agent_android.ui.AboutScreen
 import android.util.Log
+import com.example.simple_agent_android.utils.SharedPrefsUtils
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
@@ -43,7 +41,7 @@ class MainActivity : ComponentActivity() {
                 var debugMenuExpanded by remember { mutableStateOf(false) }
                 var overlayActive by remember { mutableStateOf(BoundingBoxAccessibilityService.isOverlayActive()) }
                 var showBoxes by remember { mutableStateOf(true) }
-                var verticalOffset by remember { mutableStateOf(BoundingBoxAccessibilityService.getVerticalOffset(this@MainActivity)) }
+                var verticalOffset by remember { mutableStateOf(SharedPrefsUtils.getVerticalOffset(this@MainActivity)) }
                 val prefs = getSharedPreferences("agent_prefs", Context.MODE_PRIVATE)
                 var openAiKey by remember { mutableStateOf(prefs.getString("openai_key", "") ?: "") }
                 var keyVisible by remember { mutableStateOf(false) }
@@ -148,7 +146,7 @@ class MainActivity : ComponentActivity() {
                             verticalOffset = verticalOffset,
                             onVerticalOffsetChange = {
                                 verticalOffset = it
-                                BoundingBoxAccessibilityService.setVerticalOffset(this@MainActivity, verticalOffset)
+                                SharedPrefsUtils.setVerticalOffset(this@MainActivity, verticalOffset)
                             },
                             onExportJson = {
                                 jsonOutput = BoundingBoxAccessibilityService.getInteractiveElementsJson()

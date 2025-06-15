@@ -2,34 +2,17 @@ package com.example.simple_agent_android
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.view.LayoutInflater
-import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.FrameLayout
-import androidx.annotation.RequiresApi
-import org.json.JSONArray
-import org.json.JSONObject
-import com.example.simple_agent_android.BoundingBoxOverlayView
-import com.example.simple_agent_android.InteractiveElementUtils
-import android.view.Gravity
-import android.view.MotionEvent
-import android.widget.ImageView
-import android.app.AlertDialog
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Bundle
-import com.example.simple_agent_android.ui.floating.FloatingControlsView
 import com.example.simple_agent_android.ui.floating.FloatingAgentButton
 import android.util.Log
 
@@ -51,7 +34,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "BoundingBoxService"
         private var instance: BoundingBoxAccessibilityService? = null
-        private var verticalOffset: Int = 0
         private var overlayEnabled: Boolean = true
         fun startOverlay(showBoxes: Boolean = true) {
             overlayEnabled = showBoxes
@@ -71,18 +53,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             instance?.overlay?.invalidate()
         }
         fun isOverlayEnabled(): Boolean = overlayEnabled
-        fun setVerticalOffset(context: android.content.Context, offset: Int) {
-            verticalOffset = offset
-            val prefs = context.getSharedPreferences("overlay_prefs", MODE_PRIVATE)
-            prefs.edit().putInt("vertical_offset", offset).apply()
-        }
-        fun getVerticalOffset(context: android.content.Context): Int {
-            if (verticalOffset == 0) {
-                val prefs = context.getSharedPreferences("overlay_prefs", MODE_PRIVATE)
-                verticalOffset = prefs.getInt("vertical_offset", 0)
-            }
-            return verticalOffset
-        }
         fun getInteractiveElementsJson(): String {
             return InteractiveElementUtils.getInteractiveElementsJson(instance)
         }
@@ -133,7 +103,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(refreshRunnable)
         windowManager = null
         if (instance == this) instance = null
-        verticalOffset = 0
         overlayEnabled = true
     }
 
@@ -166,7 +135,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         handler.removeCallbacks(refreshRunnable)
         windowManager = null
         if (instance == this) instance = null
-        verticalOffset = 0
         overlayEnabled = true
         return super.onUnbind(intent)
     }

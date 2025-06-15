@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
+import com.example.simple_agent_android.utils.SharedPrefsUtils
 
 class BoundingBoxOverlayView(context: Context) : View(context) {
     private val paint = Paint().apply {
@@ -33,9 +34,9 @@ class BoundingBoxOverlayView(context: Context) : View(context) {
         if (!rect.isEmpty) {
             // Apply offset
             rect.left += offset
-            rect.top += offset + BoundingBoxAccessibilityService.getVerticalOffset(context)
+            rect.top += offset + SharedPrefsUtils.getVerticalOffset(context)
             rect.right -= offset
-            rect.bottom -= offset - BoundingBoxAccessibilityService.getVerticalOffset(context)
+            rect.bottom -= offset - SharedPrefsUtils.getVerticalOffset(context)
             boxes.add(rect)
         }
         for (i in 0 until node.childCount) {

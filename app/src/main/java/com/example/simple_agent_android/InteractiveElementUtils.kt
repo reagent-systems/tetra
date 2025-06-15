@@ -2,7 +2,6 @@ package com.example.simple_agent_android
 
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
-import com.example.simple_agent_android.BoundingBoxAccessibilityService
 import org.json.JSONArray
 import org.json.JSONObject
 
