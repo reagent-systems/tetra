@@ -169,45 +169,28 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
                 Log.d(TAG, "Creating new floating button")
                 floatingAgentButton = FloatingAgentButton(this).apply {
                     setOnStartAgentListener { instruction ->
-                        Log.d(TAG, "Floating button start agent triggered")
-                        if (!hasOverlayPermission(this@BoundingBoxAccessibilityService)) {
-                            Log.d(TAG, "No overlay permission, requesting...")
-                            requestOverlayPermission(this@BoundingBoxAccessibilityService)
-                        } else {
-                            if (!isOverlayActive()) {
-                                Log.d(TAG, "Starting overlay")
-                                startOverlay(false)
-                            } else {
-                                Log.d(TAG, "Setting overlay enabled to false")
-                                setOverlayEnabled(false)
+                        Log.d(TAG, "Starting agent with instruction: $instruction")
+                        com.example.simple_agent_android.agentcore.AgentStateManager.startAgent(
+                            instruction = instruction,
+                            apiKey = getSharedPreferences("agent_prefs", MODE_PRIVATE).getString("openai_key", "") ?: "",
+                            appContext = this@BoundingBoxAccessibilityService,
+                            onOutput = { output ->
+                                Log.d(TAG, "Agent output: $output")
                             }
-                            Log.d(TAG, "Starting agent with instruction")
-                            com.example.simple_agent_android.agentcore.AgentOrchestrator.runAgent(
-                                instruction = instruction,
-                                apiKey = getSharedPreferences("agent_prefs", MODE_PRIVATE).getString("openai_key", "") ?: "",
-                                context = this@BoundingBoxAccessibilityService,
-                                onAgentStopped = {
-                                    Log.d(TAG, "Agent stopped callback")
-                                    floatingAgentButton?.switchToStartState()
-                                },
-                                onOutput = { output ->
-                                    Log.d(TAG, "Agent output received")
-                                }
-                            )
-                        }
+                        )
                     }
                     setOnPauseAgentListener {
-                        val currentlyPaused = com.example.simple_agent_android.agentcore.AgentOrchestrator.isPaused()
+                        val currentlyPaused = com.example.simple_agent_android.agentcore.AgentStateManager.isPaused()
                         if (currentlyPaused) {
-                            com.example.simple_agent_android.agentcore.AgentOrchestrator.resumeAgent()
+                            com.example.simple_agent_android.agentcore.AgentStateManager.resumeAgent()
                             floatingAgentButton?.setPaused(false)
                         } else {
-                            com.example.simple_agent_android.agentcore.AgentOrchestrator.pauseAgent()
+                            com.example.simple_agent_android.agentcore.AgentStateManager.pauseAgent()
                             floatingAgentButton?.setPaused(true)
                         }
                     }
                     setOnStopAgentListener {
-                        com.example.simple_agent_android.agentcore.AgentOrchestrator.stopAgent()
+                        com.example.simple_agent_android.agentcore.AgentStateManager.stopAgent()
                     }
                     show()
                 }

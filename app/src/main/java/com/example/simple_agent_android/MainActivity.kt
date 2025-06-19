@@ -1,50 +1,105 @@
 package com.example.simple_agent_android
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
-import android.os.Build
-import android.content.Context
-import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.example.simple_agent_android.agentcore.AgentOrchestrator
-import androidx.compose.foundation.layout.Box
-import com.example.simple_agent_android.ui.HomeScreen
-import com.example.simple_agent_android.ui.DebugScreen
-import com.example.simple_agent_android.ui.SidebarDrawer
-import com.example.simple_agent_android.ui.SettingsScreen
+import com.example.simple_agent_android.agentcore.AgentStateManager
 import com.example.simple_agent_android.ui.AboutScreen
-import android.util.Log
+import com.example.simple_agent_android.ui.DebugScreen
+import com.example.simple_agent_android.ui.HomeScreen
+import com.example.simple_agent_android.ui.SettingsScreen
+import com.example.simple_agent_android.ui.SidebarDrawer
+import com.example.simple_agent_android.ui.theme.ReagentDark
+import com.example.simple_agent_android.ui.theme.ReagentWhite
+import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
+import com.example.simple_agent_android.utils.OverlayPermissionUtils
 import com.example.simple_agent_android.utils.SharedPrefsUtils
+import com.example.simple_agent_android.utils.UpdateUtils
+import com.example.simple_agent_android.utils.NotificationUtils
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val TAG = "MainActivity"
-    
+    private val TAG = MainActivity::class.java.simpleName
+    private lateinit var updateUtils: UpdateUtils
+    private var updateDialogState = mutableStateOf<UpdateUtils.UpdateCheckResult?>(null)
+    private var showUpdateDialog = mutableStateOf(false)
+
+    // Add permission launcher
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (!isGranted) {
+            Toast.makeText(this, "Notifications permission is required for agent status updates", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate")
         enableEdgeToEdge()
+
+        // Request notification permission
+        checkAndRequestNotificationPermission()
+
+        updateUtils = UpdateUtils(this)
+
+        // Check for updates on app startup
+        lifecycleScope.launch {
+            checkForUpdates()
+        }
+
         setContent {
             SimpleAgentAndroidTheme {
                 var drawerOpen by remember { mutableStateOf(false) }
                 var selectedScreen by remember { mutableStateOf("home") }
                 var agentRunning by remember { mutableStateOf(false) }
-                var debugMenuExpanded by remember { mutableStateOf(false) }
                 var overlayActive by remember { mutableStateOf(BoundingBoxAccessibilityService.isOverlayActive()) }
                 var showBoxes by remember { mutableStateOf(true) }
                 var verticalOffset by remember { mutableStateOf(SharedPrefsUtils.getVerticalOffset(this@MainActivity)) }
                 val prefs = getSharedPreferences("agent_prefs", Context.MODE_PRIVATE)
                 var openAiKey by remember { mutableStateOf(prefs.getString("openai_key", "") ?: "") }
-                var keyVisible by remember { mutableStateOf(false) }
                 var agentInput by remember { mutableStateOf("") }
                 var showJsonDialog by remember { mutableStateOf(false) }
                 var jsonOutput by remember { mutableStateOf("") }
@@ -67,21 +122,19 @@ class MainActivity : ComponentActivity() {
                         "home" -> HomeScreen(
                             agentRunning = agentRunning,
                             onStartAgent = {
-                                if (!hasOverlayPermission(this@MainActivity)) {
-                                    requestOverlayPermission(this@MainActivity)
+                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
+                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
                                 } else {
                                     if (!BoundingBoxAccessibilityService.isOverlayActive()) {
                                         BoundingBoxAccessibilityService.startOverlay(false)
                                     } else {
                                         BoundingBoxAccessibilityService.setOverlayEnabled(false)
                                     }
-                                    agentRunning = true
                                     agentOutput = ""
-                                    AgentOrchestrator.runAgent(
+                                    AgentStateManager.startAgent(
                                         instruction = agentInput,
                                         apiKey = openAiKey,
-                                        context = this@MainActivity,
-                                        onAgentStopped = { agentRunning = false },
+                                        appContext = this@MainActivity,
                                         onOutput = { output ->
                                             agentOutput += output + "\n"
                                         }
@@ -89,8 +142,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onStopAgent = {
-                                AgentOrchestrator.stopAgent()
-                                agentRunning = false
+                                AgentStateManager.stopAgent()
                             },
                             agentInput = agentInput,
                             onAgentInputChange = { agentInput = it },
@@ -102,9 +154,9 @@ class MainActivity : ComponentActivity() {
                             floatingUiEnabled = floatingUiEnabled,
                             onToggleFloatingUi = {
                                 Log.d(TAG, "Toggle floating UI requested, current state: $floatingUiEnabled")
-                                if (!hasOverlayPermission(this@MainActivity)) {
+                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
                                     Log.d(TAG, "No overlay permission, requesting...")
-                                    requestOverlayPermission(this@MainActivity)
+                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
                                 } else {
                                     try {
                                         floatingUiEnabled = !floatingUiEnabled
@@ -131,8 +183,8 @@ class MainActivity : ComponentActivity() {
                             },
                             overlayActive = overlayActive,
                             onToggleOverlay = {
-                                if (!hasOverlayPermission(this@MainActivity)) {
-                                    requestOverlayPermission(this@MainActivity)
+                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
+                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
                                 } else {
                                     if (BoundingBoxAccessibilityService.isOverlayActive()) {
                                         BoundingBoxAccessibilityService.stopOverlay()
@@ -162,11 +214,138 @@ class MainActivity : ComponentActivity() {
                                 prefs.edit().putString("openai_key", openAiKey).apply()
                                 settingsSaved = true
                             },
-                            saved = settingsSaved
+                            saved = settingsSaved,
+                            onCheckForUpdates = {
+                                lifecycleScope.launch {
+                                    checkForUpdates(showAlways = true)
+                                }
+                            }
                         )
                         "about" -> AboutScreen()
-                        else -> Box(modifier = Modifier.fillMaxSize())
+                        else -> {}
                     }
+
+                    // Update dialog
+                    UpdateDialog()
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun UpdateDialog() {
+        var updateResult by remember { updateDialogState }
+        var showDialog by remember { showUpdateDialog }
+        var showUpdateLog by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+
+        updateResult?.let { result ->
+            if (result is UpdateUtils.UpdateCheckResult.UpdateAvailable && showDialog) {
+                AlertDialog(
+                    onDismissRequest = { 
+                        showDialog = false 
+                        updateResult = null
+                        showUpdateLog = false
+                    },
+                    title = { Text("Update Available") },
+                    text = { 
+                        Column {
+                            Text("A new version of Simple Agent is available.")
+                            Text("Current version: ${result.currentVersion}")
+                            Text("New version: ${result.newVersion}")
+                            
+                            Spacer(modifier = Modifier.heightIn(8.dp))
+                            
+                            TextButton(
+                                onClick = { showUpdateLog = !showUpdateLog },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(if (showUpdateLog) "Hide Update Log" else "Show Update Log")
+                            }
+                            
+                            if (showUpdateLog) {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp),
+                                    colors = CardDefaults.cardColors(containerColor = ReagentDark)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp)
+                                    ) {
+                                        val scrollState = rememberScrollState()
+                                        Text(
+                                            text = result.updateLog,
+                                            color = ReagentWhite,
+                                            modifier = Modifier.verticalScroll(scrollState)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDialog = false
+                                updateUtils.downloadAndInstallUpdate()
+                                updateResult = null
+                                showUpdateLog = false
+                            }
+                        ) {
+                            Text("Update")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { 
+                                showDialog = false 
+                                updateResult = null
+                                showUpdateLog = false
+                            }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private suspend fun checkForUpdates(showAlways: Boolean = false) {
+        val result = updateUtils.checkForUpdates()
+        when (result) {
+            is UpdateUtils.UpdateCheckResult.UpdateAvailable -> {
+                runOnUiThread {
+                    updateDialogState.value = result
+                    showUpdateDialog.value = true
+                    Toast.makeText(
+                        this, 
+                        "Update available: ${result.newVersion}", 
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            is UpdateUtils.UpdateCheckResult.NoUpdateAvailable -> {
+                if (showAlways) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this, 
+                            "No updates available", 
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+            is UpdateUtils.UpdateCheckResult.CheckFailed -> {
+                runOnUiThread {
+                    Toast.makeText(
+                        this, 
+                        "Update check failed: ${result.errorMessage}", 
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }

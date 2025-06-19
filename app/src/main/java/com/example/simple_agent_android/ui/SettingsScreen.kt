@@ -21,7 +21,8 @@ fun SettingsScreen(
     openAiKey: String,
     onOpenAiKeyChange: (String) -> Unit,
     onSave: () -> Unit,
-    saved: Boolean
+    saved: Boolean,
+    onCheckForUpdates: () -> Unit
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -83,6 +84,15 @@ fun SettingsScreen(
                 if (saved) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("Saved!", color = ReagentGreen)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onCheckForUpdates,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Check for Updates", color = ReagentWhite)
                 }
             }
         }
