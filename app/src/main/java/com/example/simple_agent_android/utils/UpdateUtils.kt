@@ -1,13 +1,17 @@
 package com.example.simple_agent_android.utils
 
 import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,8 +26,15 @@ class UpdateUtils(private val context: Context) {
         private const val APK_DOWNLOAD_URL = "https://cdn.bentlybro.com/SA-A/app-release.apk"
     }
 
+    sealed class DownloadStatus {
+        object NotStarted : DownloadStatus()
+        data class InProgress(val progress: Int) : DownloadStatus()
+        object Completed : DownloadStatus()
+        data class Failed(val error: String) : DownloadStatus()
+    }
+
     suspend fun checkForUpdates(): UpdateCheckResult {
-        try {
+        return try {
             val currentVersionCode = getCurrentVersionCode()
             val currentVersionName = getCurrentVersionName()
             
@@ -33,7 +44,7 @@ class UpdateUtils(private val context: Context) {
             
             Log.d(TAG, "Latest version: ${latestVersionInfo.versionName} (code: ${latestVersionInfo.versionCode})")
             
-            return when {
+            when {
                 latestVersionInfo.versionCode > currentVersionCode -> {
                     Log.i(TAG, "Update available: ${latestVersionInfo.versionName}")
                     UpdateCheckResult.UpdateAvailable(
@@ -53,7 +64,7 @@ class UpdateUtils(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking for updates", e)
-            return UpdateCheckResult.CheckFailed(e.message ?: "Unknown error")
+            UpdateCheckResult.CheckFailed(e.message ?: "Unknown error")
         }
     }
 
@@ -77,52 +88,112 @@ class UpdateUtils(private val context: Context) {
         }
     }
 
-    fun downloadAndInstallUpdate() {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    fun downloadAndInstallUpdate(): Flow<DownloadStatus> = flow {
+        emit(DownloadStatus.NotStarted)
         
-        val request = DownloadManager.Request(Uri.parse(APK_DOWNLOAD_URL))
-            .setTitle("Simple Agent Update")
-            .setDescription("Downloading update")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, "SimpleAgent-update.apk")
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-        
-        val downloadId = downloadManager.enqueue(request)
-        
-        triggerInstallation(downloadId)
+        try {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            
+            // Create download request
+            val request = DownloadManager.Request(Uri.parse(APK_DOWNLOAD_URL))
+                .setTitle("Simple Agent Update")
+                .setDescription("Downloading update")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, "SimpleAgent-update.apk")
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
+            
+            val downloadId = downloadManager.enqueue(request)
+            
+            // Register broadcast receiver for download completion
+            val downloadReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                    if (id == downloadId) {
+                        context?.unregisterReceiver(this)
+                        val query = DownloadManager.Query().setFilterById(downloadId)
+                        val cursor = downloadManager.query(query)
+                        
+                        if (cursor.moveToFirst()) {
+                            val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                            when (status) {
+                                DownloadManager.STATUS_SUCCESSFUL -> {
+                                    val uriString = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))
+                                    installUpdate(Uri.parse(uriString))
+                                }
+                                DownloadManager.STATUS_FAILED -> {
+                                    val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
+                                    Log.e(TAG, "Download failed: $reason")
+                                }
+                            }
+                        }
+                        cursor.close()
+                    }
+                }
+            }
+            
+            context.registerReceiver(
+                downloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            )
+            
+            // Monitor download progress
+            var downloading = true
+            while (downloading) {
+                val query = DownloadManager.Query().setFilterById(downloadId)
+                val cursor = downloadManager.query(query)
+                
+                if (cursor.moveToFirst()) {
+                    val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
+                    when (status) {
+                        DownloadManager.STATUS_RUNNING -> {
+                            val totalBytes = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                            val downloadedBytes = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                            if (totalBytes > 0) {
+                                val progress = ((downloadedBytes * 100) / totalBytes).toInt()
+                                emit(DownloadStatus.InProgress(progress))
+                            }
+                        }
+                        DownloadManager.STATUS_SUCCESSFUL -> {
+                            downloading = false
+                            emit(DownloadStatus.Completed)
+                        }
+                        DownloadManager.STATUS_FAILED -> {
+                            downloading = false
+                            val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
+                            emit(DownloadStatus.Failed("Download failed: $reason"))
+                        }
+                    }
+                }
+                cursor.close()
+                kotlinx.coroutines.delay(500) // Update progress every 500ms
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during download", e)
+            emit(DownloadStatus.Failed(e.message ?: "Unknown error"))
+        }
     }
 
-    private fun triggerInstallation(downloadId: Long) {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val query = DownloadManager.Query().setFilterById(downloadId)
-        val cursor = downloadManager.query(query)
-        
-        if (cursor.moveToFirst()) {
-            val columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-            val status = cursor.getInt(columnIndex)
-            
-            if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                val downloadedApkUri = Uri.parse(cursor.getString(uriIndex))
-                
-                val apkFile = File(downloadedApkUri.path ?: return)
-                val uri = FileProvider.getUriForFile(
-                    context, 
-                    "${context.packageName}.fileprovider", 
-                    apkFile
-                )
-                
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                
-                context.startActivity(intent)
+    private fun installUpdate(downloadedApkUri: Uri) {
+        try {
+            val apkFile = File(downloadedApkUri.path ?: return)
+            val contentUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                apkFile
+            )
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
+
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing update", e)
         }
-        cursor.close()
     }
 
     private fun getCurrentVersionCode(): Int {

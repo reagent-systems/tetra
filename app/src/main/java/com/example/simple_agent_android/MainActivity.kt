@@ -24,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -237,15 +240,19 @@ class MainActivity : ComponentActivity() {
         var updateResult by remember { updateDialogState }
         var showDialog by remember { showUpdateDialog }
         var showUpdateLog by remember { mutableStateOf(false) }
+        var downloadStatus by remember { mutableStateOf<UpdateUtils.DownloadStatus>(UpdateUtils.DownloadStatus.NotStarted) }
         val context = LocalContext.current
 
         updateResult?.let { result ->
             if (result is UpdateUtils.UpdateCheckResult.UpdateAvailable && showDialog) {
                 AlertDialog(
                     onDismissRequest = { 
-                        showDialog = false 
-                        updateResult = null
-                        showUpdateLog = false
+                        if (downloadStatus !is UpdateUtils.DownloadStatus.InProgress) {
+                            showDialog = false 
+                            updateResult = null
+                            showUpdateLog = false
+                            downloadStatus = UpdateUtils.DownloadStatus.NotStarted
+                        }
                     },
                     title = { Text("Update Available") },
                     text = { 
@@ -256,14 +263,43 @@ class MainActivity : ComponentActivity() {
                             
                             Spacer(modifier = Modifier.heightIn(8.dp))
                             
-                            TextButton(
-                                onClick = { showUpdateLog = !showUpdateLog },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(if (showUpdateLog) "Hide Update Log" else "Show Update Log")
+                            when (downloadStatus) {
+                                is UpdateUtils.DownloadStatus.NotStarted -> {
+                                    TextButton(
+                                        onClick = { showUpdateLog = !showUpdateLog },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(if (showUpdateLog) "Hide Update Log" else "Show Update Log")
+                                    }
+                                }
+                                is UpdateUtils.DownloadStatus.InProgress -> {
+                                    val progress = (downloadStatus as UpdateUtils.DownloadStatus.InProgress).progress
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("Downloading update: $progress%")
+                                        LinearProgressIndicator(
+                                            progress = progress / 100f,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                                is UpdateUtils.DownloadStatus.Failed -> {
+                                    val error = (downloadStatus as UpdateUtils.DownloadStatus.Failed).error
+                                    Text(
+                                        text = "Download failed: $error",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                UpdateUtils.DownloadStatus.Completed -> {
+                                    Text("Download completed. Installing...")
+                                }
                             }
                             
-                            if (showUpdateLog) {
+                            if (showUpdateLog && downloadStatus is UpdateUtils.DownloadStatus.NotStarted) {
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -287,26 +323,37 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showDialog = false
-                                updateUtils.downloadAndInstallUpdate()
-                                updateResult = null
-                                showUpdateLog = false
+                        if (downloadStatus is UpdateUtils.DownloadStatus.NotStarted || downloadStatus is UpdateUtils.DownloadStatus.Failed) {
+                            TextButton(
+                                onClick = {
+                                    lifecycleScope.launch {
+                                        updateUtils.downloadAndInstallUpdate().collect { status ->
+                                            downloadStatus = status
+                                            if (status is UpdateUtils.DownloadStatus.Completed) {
+                                                showDialog = false
+                                                updateResult = null
+                                                showUpdateLog = false
+                                            }
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text(if (downloadStatus is UpdateUtils.DownloadStatus.Failed) "Retry" else "Update")
                             }
-                        ) {
-                            Text("Update")
                         }
                     },
                     dismissButton = {
-                        TextButton(
-                            onClick = { 
-                                showDialog = false 
-                                updateResult = null
-                                showUpdateLog = false
+                        if (downloadStatus !is UpdateUtils.DownloadStatus.InProgress) {
+                            TextButton(
+                                onClick = { 
+                                    showDialog = false 
+                                    updateResult = null
+                                    showUpdateLog = false
+                                    downloadStatus = UpdateUtils.DownloadStatus.NotStarted
+                                }
+                            ) {
+                                Text("Cancel")
                             }
-                        ) {
-                            Text("Cancel")
                         }
                     }
                 )
