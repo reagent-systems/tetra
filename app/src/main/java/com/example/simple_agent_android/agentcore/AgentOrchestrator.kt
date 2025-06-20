@@ -5,6 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.example.simple_agent_android.agentcore.AgentActions
+import com.example.simple_agent_android.agentcore.ScreenAnalyzer
+import com.example.simple_agent_android.agentcore.TaskContextManager
 import com.example.simple_agent_android.agentcore.metacognition.MetaCognition
 import com.example.simple_agent_android.agentcore.metacognition.LoopDetector
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +54,10 @@ ${Prompts.getDateReminder()}""")
                 if (plan != null) onOutput?.invoke("Plan: $plan")
                 val assistantPlan = if (plan != null) mapOf("role" to "assistant", "content" to plan) else null
                 
+                // Initialize task context and screen analysis
+                val taskContext = TaskContextManager.initializeTask(instruction, plan)
+                var previousScreenAnalysis: ScreenAnalysis? = null
+                
                 var step = 0
                 var lastAction: String? = null
                 // Start with initial message history
@@ -75,43 +81,9 @@ ${Prompts.getDateReminder()}""")
                     }
                     if (stopping) break
                     step++
+                    TaskContextManager.advanceStep()
 
-                    // Check for loops before proceeding
-                    val loopAnalysis = LoopDetector.analyzeHistory(messages)
-                    if (loopAnalysis.isLooping) {
-                        LogManager.log(TAG, "Step $step: Loop detected - type: ${loopAnalysis.loopType}, severity: ${loopAnalysis.severity}")
-                        onOutput?.invoke("Loop detected - analyzing situation...")
-                        
-                        // Add loop breaking prompt
-                        messages.add(mapOf("role" to "user", "content" to """${Prompts.loopBreakingPrompt}
-
-You are stuck in a ${loopAnalysis.loopType} loop (Severity: ${loopAnalysis.severity}).
-You have repeated similar actions ${loopAnalysis.count} times across steps: ${loopAnalysis.steps.joinToString(", ")}.
-
-Original instruction: "$instruction"
-
-${Prompts.loopBreakingDecisionFormat}"""))
-
-                        // Immediately check if we should stop due to the loop
-                        val shouldStopDueToLoop = MetaCognition.shouldStop(messages, apiKey)
-                        if (shouldStopDueToLoop) {
-                            LogManager.log(TAG, "Step $step: Stopping due to unrecoverable loop")
-                            onOutput?.invoke("Stopping due to unrecoverable loop - unable to make progress")
-                            return@launch
-                        }
-
-                        // If we continue, add a warning about the loop
-                        onOutput?.invoke("⚠️ Warning: In a ${loopAnalysis.loopType} loop - attempting recovery...")
-                    }
-
-                    // Remove any previous screen JSON user message
-                    messages = messages.filterNot { it["role"] == "user" && it["content"]?.startsWith("Current screen JSON:") == true }.toMutableList()
-                    // Remove any trailing tool messages before LLM call
-                    while (messages.isNotEmpty() && messages.last()["role"] == "tool") {
-                        messages.removeAt(messages.size - 1)
-                    }
-                    
-                    // Add the latest screen JSON as a user message
+                    // Get and analyze current screen
                     var screenJson = AgentActions.getScreenJson()
                     var emptyTries = 0
                     while ((screenJson.trim() == "[]" || screenJson.trim().isEmpty()) && emptyTries < 5) {
@@ -121,7 +93,75 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                         screenJson = AgentActions.getScreenJson()
                         emptyTries++
                     }
-                    messages.add(mapOf("role" to "user", "content" to "Current screen JSON: $screenJson"))
+                    
+                    val currentScreenAnalysis = ScreenAnalyzer.analyzeScreen(screenJson)
+                    
+                    // Smart loop detection using both old and new methods
+                    val loopAnalysis = LoopDetector.analyzeHistory(messages)
+                    val isStuckInLoop = TaskContextManager.isStuckInLoop()
+                    
+                    if (loopAnalysis.isLooping || isStuckInLoop) {
+                        LogManager.log(TAG, "Step $step: Loop detected - traditional: ${loopAnalysis.isLooping}, context-aware: $isStuckInLoop")
+                        onOutput?.invoke("Loop detected - analyzing situation...")
+                        
+                        // Check if task might actually be complete
+                        if (TaskContextManager.shouldTaskComplete()) {
+                            LogManager.log(TAG, "Step $step: Task appears complete despite loop detection")
+                            onOutput?.invoke("Task appears to be complete - stopping")
+                            return@launch
+                        }
+                        
+                        // Add intelligent loop breaking prompt with screen context
+                        val contextSummary = TaskContextManager.getContextSummary()
+                        messages.add(mapOf("role" to "user", "content" to """${Prompts.loopBreakingPrompt}
+
+Current situation analysis:
+$contextSummary
+
+Screen Analysis:
+- Type: ${currentScreenAnalysis.screenType}
+- Loading State: ${currentScreenAnalysis.loadingState}
+- Available Elements: ${currentScreenAnalysis.interactableElements.take(5).map { it.displayText }}
+
+You are stuck in a loop. Consider:
+1. Are you trying to interact with the wrong element?
+2. Is the screen in a different state than expected?
+3. Should you try a different approach entirely?
+4. Is the task actually complete?
+
+${Prompts.loopBreakingDecisionFormat}"""))
+
+                        // Enhanced stopping decision with context
+                        val shouldStopDueToLoop = MetaCognition.shouldStop(messages, apiKey)
+                        if (shouldStopDueToLoop) {
+                            LogManager.log(TAG, "Step $step: Stopping due to unrecoverable loop")
+                            onOutput?.invoke("Stopping due to unrecoverable loop - unable to make progress")
+                            return@launch
+                        }
+
+                        onOutput?.invoke("⚠️ Warning: In a loop - attempting intelligent recovery...")
+                    }
+
+                    // Remove any previous screen JSON user message
+                    messages = messages.filterNot { it["role"] == "user" && it["content"]?.startsWith("Current screen JSON:") == true }.toMutableList()
+                    // Remove any trailing tool messages before LLM call
+                    while (messages.isNotEmpty() && messages.last()["role"] == "tool") {
+                        messages.removeAt(messages.size - 1)
+                    }
+                    
+                    // Add enhanced screen information with analysis
+                    val enhancedScreenInfo = """Current screen analysis:
+Screen Type: ${currentScreenAnalysis.screenType}
+Loading State: ${currentScreenAnalysis.loadingState}
+High Priority Elements: ${currentScreenAnalysis.interactableElements.take(10).map { 
+    "\"${it.displayText}\" (${it.className.substringAfterLast('.')}) at (${it.bounds.centerX}, ${it.bounds.centerY}) priority:${it.priority}"
+}.joinToString(", ")}
+
+Task Context: ${TaskContextManager.getContextSummary()}
+
+Raw screen JSON: $screenJson"""
+                    
+                    messages.add(mapOf("role" to "user", "content" to enhancedScreenInfo))
                     
                     // Add tool call guidance
                     if (messages.none { it["role"] == "system" && it["content"]?.contains("Always respond with a tool call") == true }) {
@@ -173,9 +213,23 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.simulatePressAt(centerX, centerY)
                                         }
-                                        lastAction = "Pressed at center ($centerX, $centerY)"
+                                        val actionDescription = "Pressed at center ($centerX, $centerY)"
+                                        val elementPressed = currentScreenAnalysis.interactableElements.find { 
+                                            kotlin.math.abs(it.bounds.centerX - centerX) < 50 && kotlin.math.abs(it.bounds.centerY - centerY) < 50 
+                                        }?.displayText
+                                        lastAction = actionDescription
                                         onOutput?.invoke("Simulated press at ($centerX, $centerY)")
-                                        "Pressed at center ($centerX, $centerY)"
+                                        
+                                        // Record action in context manager
+                                        TaskContextManager.recordAction(
+                                            action = actionDescription,
+                                            element = elementPressed,
+                                            result = "Press executed",
+                                            previousScreenAnalysis = previousScreenAnalysis,
+                                            currentScreenAnalysis = currentScreenAnalysis
+                                        )
+                                        
+                                        actionDescription
                                     }
                                     "set_text" -> {
                                         val x = arguments.getInt("x")
@@ -185,9 +239,23 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.setTextAt(x, y, text)
                                         }
-                                        lastAction = "Set text at ($x, $y): $text"
+                                        val actionDescription = "Set text at ($x, $y): $text"
+                                        val textField = currentScreenAnalysis.textInputs.find { 
+                                            kotlin.math.abs(it.bounds.centerX - x) < 50 && kotlin.math.abs(it.bounds.centerY - y) < 50 
+                                        }?.displayText
+                                        lastAction = actionDescription
                                         onOutput?.invoke("Set text at ($x, $y): $text")
-                                        "Set text at ($x, $y): $text"
+                                        
+                                        // Record action in context manager
+                                        TaskContextManager.recordAction(
+                                            action = actionDescription,
+                                            element = textField,
+                                            result = "Text input executed",
+                                            previousScreenAnalysis = previousScreenAnalysis,
+                                            currentScreenAnalysis = currentScreenAnalysis
+                                        )
+                                        
+                                        actionDescription
                                     }
                                     "wait_for" -> {
                                         val duration = arguments.getLong("duration_ms")
@@ -262,6 +330,9 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                 // Get the new screen state after the action
                                 val newScreenJson = AgentActions.getScreenJson()
                                 messages.add(mapOf("role" to "user", "content" to "Current screen JSON: $newScreenJson"))
+                                
+                                // Update previous screen analysis for next iteration
+                                previousScreenAnalysis = currentScreenAnalysis
 
                                 // Do reflection immediately after each action
                                 val reflection = MetaCognition.reflectOnStep(messages, apiKey)
