@@ -18,6 +18,8 @@ import kotlin.coroutines.coroutineContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import com.example.simple_agent_android.agentcore.metacognition.Prompts
+import com.example.simple_agent_android.utils.LogManager
+import com.example.simple_agent_android.utils.LogManager.LogLevel
 
 object AgentOrchestrator {
     private const val TAG = "AGENT_CORE"
@@ -29,7 +31,7 @@ object AgentOrchestrator {
         stopping = false
         agentJob = CoroutineScope(Dispatchers.Default).launch {
             try {
-                Log.i(TAG, "Agent started with instruction: $instruction")
+                LogManager.log(TAG, "Agent started with instruction: $instruction")
                 onOutput?.invoke("Agent started with instruction: $instruction")
                 delay(1000)
 
@@ -46,7 +48,7 @@ ${Prompts.getDateReminder()}""")
 
                 val userInstruction = mapOf("role" to "user", "content" to instruction)
                 val plan = MetaCognition.planTask(instruction, apiKey)
-                Log.i(TAG, "Agent plan: $plan")
+                LogManager.log(TAG, "Agent plan: $plan")
                 if (plan != null) onOutput?.invoke("Plan: $plan")
                 val assistantPlan = if (plan != null) mapOf("role" to "assistant", "content" to plan) else null
                 
@@ -59,13 +61,13 @@ ${Prompts.getDateReminder()}""")
                 
                 while (step < 10) {
                     if (stopping) {
-                        Log.i(TAG, "Agent stopping requested, breaking loop")
+                        LogManager.log(TAG, "Agent stopping requested, breaking loop")
                         break
                     }
                     coroutineContext.ensureActive()
                     while (paused) {
                         if (stopping) {
-                            Log.i(TAG, "Agent stopping requested while paused")
+                            LogManager.log(TAG, "Agent stopping requested while paused")
                             break
                         }
                         delay(200)
@@ -77,7 +79,7 @@ ${Prompts.getDateReminder()}""")
                     // Check for loops before proceeding
                     val loopAnalysis = LoopDetector.analyzeHistory(messages)
                     if (loopAnalysis.isLooping) {
-                        Log.i(TAG, "Step $step: Loop detected - type: ${loopAnalysis.loopType}, severity: ${loopAnalysis.severity}")
+                        LogManager.log(TAG, "Step $step: Loop detected - type: ${loopAnalysis.loopType}, severity: ${loopAnalysis.severity}")
                         onOutput?.invoke("Loop detected - analyzing situation...")
                         
                         // Add loop breaking prompt
@@ -93,7 +95,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                         // Immediately check if we should stop due to the loop
                         val shouldStopDueToLoop = MetaCognition.shouldStop(messages, apiKey)
                         if (shouldStopDueToLoop) {
-                            Log.i(TAG, "Step $step: Stopping due to unrecoverable loop")
+                            LogManager.log(TAG, "Step $step: Stopping due to unrecoverable loop")
                             onOutput?.invoke("Stopping due to unrecoverable loop - unable to make progress")
                             return@launch
                         }
@@ -113,7 +115,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                     var screenJson = AgentActions.getScreenJson()
                     var emptyTries = 0
                     while ((screenJson.trim() == "[]" || screenJson.trim().isEmpty()) && emptyTries < 5) {
-                        Log.i(TAG, "Screen JSON is empty, waiting for app to load... (try ${emptyTries+1})")
+                        LogManager.log(TAG, "Screen JSON is empty, waiting for app to load... (try ${emptyTries+1})")
                         onOutput?.invoke("Screen is empty, waiting for app to load... (try ${emptyTries+1})")
                         AgentActions.waitFor(2000) // Wait 2 seconds
                         screenJson = AgentActions.getScreenJson()
@@ -126,25 +128,25 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                         messages.add(0, mapOf("role" to "system", "content" to Prompts.toolCallGuidance))
                     }
 
-                    Log.i(TAG, "Step $step: MESSAGES before LLM call: ${messages.map { it.toString() }}")
+                    LogManager.log(TAG, "Step $step: MESSAGES before LLM call: ${messages.map { it.toString() }}", LogLevel.DEBUG)
                     try {
                         if (stopping) {
-                            Log.i(TAG, "Agent stopping requested before LLM call")
+                            LogManager.log(TAG, "Agent stopping requested before LLM call")
                             break
                         }
                         coroutineContext.ensureActive()
                         val llm = LLMClient(apiKey)
-                        Log.i(TAG, "Step $step: Calling LLM with tools...")
+                        LogManager.log(TAG, "Step $step: Calling LLM with tools...")
                         val response = llm.sendWithTools(messages)
                         if (stopping) {
-                            Log.i(TAG, "Agent stopping requested after LLM call")
+                            LogManager.log(TAG, "Agent stopping requested after LLM call")
                             break
                         }
                         coroutineContext.ensureActive()
-                        Log.i(TAG, "Step $step: LLM response: $response")
+                        LogManager.log(TAG, "Step $step: LLM response: $response")
                         if (response == null || response.has("error")) {
-                            Log.e(TAG, "LLM error: ${response?.optString("error")}")
-                            Log.e(TAG, "Stopping agent due to LLM error.")
+                            LogManager.log(TAG, "LLM error: ${response?.optString("error")}", LogLevel.ERROR)
+                            LogManager.log(TAG, "Stopping agent due to LLM error.", LogLevel.ERROR)
                             onOutput?.invoke("LLM error: ${response?.optString("error")}")
                             break
                         }
@@ -167,7 +169,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                     "simulate_press" -> {
                                         val centerX = arguments.getInt("center_x")
                                         val centerY = arguments.getInt("center_y")
-                                        Log.i(TAG, "Step $step: Simulating press at center ($centerX, $centerY)")
+                                        LogManager.log(TAG, "Step $step: Simulating press at center ($centerX, $centerY)")
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.simulatePressAt(centerX, centerY)
                                         }
@@ -179,7 +181,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         val x = arguments.getInt("x")
                                         val y = arguments.getInt("y")
                                         val text = arguments.getString("text")
-                                        Log.i(TAG, "Step $step: Setting text at ($x, $y): $text")
+                                        LogManager.log(TAG, "Step $step: Setting text at ($x, $y): $text")
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.setTextAt(x, y, text)
                                         }
@@ -189,7 +191,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                     }
                                     "wait_for" -> {
                                         val duration = arguments.getLong("duration_ms")
-                                        Log.i(TAG, "Step $step: Waiting for $duration ms")
+                                        LogManager.log(TAG, "Step $step: Waiting for $duration ms")
                                         AgentActions.waitFor(duration)
                                         lastAction = "Waited for $duration ms"
                                         onOutput?.invoke("Waited for $duration ms")
@@ -200,14 +202,14 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         val contentDescription = if (arguments.has("contentDescription")) arguments.optString("contentDescription", null) else null
                                         val className = if (arguments.has("className")) arguments.optString("className", null) else null
                                         val timeout = if (arguments.has("timeout_ms")) arguments.getLong("timeout_ms") else 5000L
-                                        Log.i(TAG, "Step $step: Waiting for element (text=$text, contentDescription=$contentDescription, className=$className) up to $timeout ms")
+                                        LogManager.log(TAG, "Step $step: Waiting for element (text=$text, contentDescription=$contentDescription, className=$className) up to $timeout ms")
                                         val found = AgentActions.waitForElement(text, contentDescription, className, timeout)
                                         lastAction = if (found) "Element appeared" else "Element not found in $timeout ms"
                                         onOutput?.invoke(lastAction!!)
                                         lastAction!!
                                     }
                                     "go_home" -> {
-                                        Log.i(TAG, "Step $step: Going home")
+                                        LogManager.log(TAG, "Step $step: Going home")
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.goHome()
                                         }
@@ -216,7 +218,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         "Went home"
                                     }
                                     "go_back" -> {
-                                        Log.i(TAG, "Step $step: Going back")
+                                        LogManager.log(TAG, "Step $step: Going back")
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.goBack()
                                         }
@@ -230,7 +232,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         val endX = arguments.getInt("endX")
                                         val endY = arguments.getInt("endY")
                                         val duration = if (arguments.has("duration")) arguments.getLong("duration") else 300L
-                                        Log.i(TAG, "Step $step: Swiping from ($startX, $startY) to ($endX, $endY) duration $duration ms")
+                                        LogManager.log(TAG, "Step $step: Swiping from ($startX, $startY) to ($endX, $endY) duration $duration ms")
                                         Handler(Looper.getMainLooper()).post {
                                             AgentActions.swipe(startX, startY, endX, endY, duration)
                                         }
@@ -239,7 +241,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                                         "Swiped from ($startX, $startY) to ($endX, $endY)"
                                     }
                                     else -> {
-                                        Log.e(TAG, "Step $step: Unknown tool call: $name")
+                                        LogManager.log(TAG, "Step $step: Unknown tool call: $name")
                                         lastAction = "Unknown tool call: $name"
                                         onOutput?.invoke("Unknown tool call: $name")
                                         "Unknown tool call: $name"
@@ -263,7 +265,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
 
                                 // Do reflection immediately after each action
                                 val reflection = MetaCognition.reflectOnStep(messages, apiKey)
-                                Log.i(TAG, "Step $step: Reflection after action: $reflection")
+                                LogManager.log(TAG, "Step $step: Reflection after action: $reflection")
                                 if (reflection != null) {
                                     onOutput?.invoke("Reflection: $reflection")
                                     messages.add(mapOf("role" to "assistant", "content" to reflection))
@@ -271,29 +273,29 @@ ${Prompts.loopBreakingDecisionFormat}"""))
 
                                 // Check if we should stop after each action
                                 val shouldStop = MetaCognition.shouldStop(messages, apiKey)
-                                Log.i(TAG, "Step $step: Should stop after action? $shouldStop")
+                                LogManager.log(TAG, "Step $step: Should stop after action? $shouldStop")
                                 onOutput?.invoke("Should stop? $shouldStop")
                                 if (shouldStop) {
-                                    Log.i(TAG, "Step $step: Metacognition decided to stop.")
+                                    LogManager.log(TAG, "Step $step: Metacognition decided to stop.")
                                     onOutput?.invoke("Agent decided to stop.")
                                     return@launch
                                 }
                             }
                             continue
                         } else if (content.isNotBlank()) {
-                            Log.i(TAG, "Step $step: No tool calls, but got content: $content. Adding to messages and continuing.")
+                            LogManager.log(TAG, "Step $step: No tool calls, but got content: $content. Adding to messages and continuing.")
                             messages.add(mapOf("role" to "assistant", "content" to content))
                             onOutput?.invoke(content)
                             delay(200)
                             coroutineContext.ensureActive()
                             continue
                         } else {
-                            Log.i(TAG, "Step $step: No tool calls and no content. Agent done.")
+                            LogManager.log(TAG, "Step $step: No tool calls and no content. Agent done.")
                             onOutput?.invoke("Agent done.")
                             break
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error in agent loop", e)
+                        LogManager.log(TAG, "Error in agent loop: ${e.message}", LogLevel.ERROR)
                         onOutput?.invoke("Error: ${e.message}")
                         break
                     }
@@ -301,7 +303,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                     coroutineContext.ensureActive()
                 }
             } finally {
-                Log.i(TAG, "Agent stopped")
+                LogManager.log(TAG, "Agent stopped")
                 onOutput?.invoke("Agent stopped")
                 onAgentStopped?.invoke()
             }
@@ -309,7 +311,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
     }
 
     fun stopAgent() {
-        Log.i(TAG, "Stopping agent...")
+        LogManager.log(TAG, "Stopping agent...")
         stopping = true
         agentJob?.cancel()
         agentJob = null
@@ -317,10 +319,12 @@ ${Prompts.loopBreakingDecisionFormat}"""))
     }
 
     fun pauseAgent() {
+        LogManager.log(TAG, "Agent paused")
         paused = true
     }
 
     fun resumeAgent() {
+        LogManager.log(TAG, "Agent resumed")
         paused = false
     }
 
