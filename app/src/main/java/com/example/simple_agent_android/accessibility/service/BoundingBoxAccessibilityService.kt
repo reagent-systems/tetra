@@ -77,6 +77,7 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         Log.d(TAG, "Service onCreate")
         instance = this
         overlayManager = OverlayManager(this)
+        overlayManager.setRootNodeProvider { rootInActiveWindow }
         floatingButtonManager = FloatingButtonManager(this)
         gestureHandler = AccessibilityGestureHandler(this)
         nodeHandler = AccessibilityNodeHandler(this)

@@ -6,24 +6,26 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@android:color/transparent"
-    android:padding="4dp"
+    android:padding="8dp"
     android:gravity="center_vertical"
-    android:layout_margin="8dp">
+    android:layout_margin="4dp">
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_pause"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
+        android:layout_marginEnd="12dp"
         android:src="@android:drawable/ic_media_pause"
         android:contentDescription="Pause Agent"
-        app:tint="@android:color/white"
-        app:backgroundTint="@android:color/holo_green_light"
+        app:tint="@color/reagent_black"
+        app:backgroundTint="@color/reagent_blue"
         app:fabSize="mini"
         android:theme="@style/Theme.MaterialComponents.Light"
         style="@style/Widget.MaterialComponents.FloatingActionButton"
-        app:elevation="6dp"
-        app:pressedTranslationZ="12dp" />
+        app:elevation="8dp"
+        app:pressedTranslationZ="16dp"
+        app:borderWidth="0dp"
+        app:rippleColor="@color/reagent_white" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btn_stop"
@@ -31,12 +33,14 @@
         android:layout_height="wrap_content"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         android:contentDescription="Stop Agent"
-        app:tint="@android:color/white"
-        app:backgroundTint="@android:color/holo_red_light"
+        app:tint="@color/reagent_white"
+        app:backgroundTint="@color/reagent_status_offline"
         app:fabSize="mini"
         android:theme="@style/Theme.MaterialComponents.Light"
         style="@style/Widget.MaterialComponents.FloatingActionButton"
-        app:elevation="6dp"
-        app:pressedTranslationZ="12dp" />
+        app:elevation="8dp"
+        app:pressedTranslationZ="16dp"
+        app:borderWidth="0dp"
+        app:rippleColor="@color/reagent_white" />
 
 </LinearLayout> 

@@ -10,10 +10,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.simple_agent_android.agentcore.AgentStateManager
 import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.OverlayPermissionUtils
+import com.example.simple_agent_android.utils.VoiceInputManager
+import com.example.simple_agent_android.utils.VoiceInputState
+import com.example.simple_agent_android.utils.AccessibilityUtils
 import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
+import com.example.simple_agent_android.notification.AgentNotificationManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.delay
+import android.os.Handler
+import android.os.Looper
 
 class MainViewModel : ViewModel() {
     
@@ -61,6 +68,32 @@ class MainViewModel : ViewModel() {
     private val _jsonOutput = mutableStateOf("")
     val jsonOutput: State<String> = _jsonOutput
     
+    // Voice Input State
+    private var voiceInputManager: VoiceInputManager? = null
+    
+    private val _voiceInputState = mutableStateOf(VoiceInputState.IDLE)
+    val voiceInputState: State<VoiceInputState> = _voiceInputState
+    
+    private val _voiceTranscription = mutableStateOf("")
+    val voiceTranscription: State<String> = _voiceTranscription
+    
+    private val _voiceInputAvailable = mutableStateOf(false)
+    val voiceInputAvailable: State<Boolean> = _voiceInputAvailable
+    
+    // Notification State
+    private var notificationManager: AgentNotificationManager? = null
+    
+    private val _notificationEnabled = mutableStateOf(false)
+    val notificationEnabled: State<Boolean> = _notificationEnabled
+    
+    // Accessibility Service State
+    private val _accessibilityServiceEnabled = mutableStateOf(false)
+    val accessibilityServiceEnabled: State<Boolean> = _accessibilityServiceEnabled
+    
+    // Handler for periodic accessibility service status checks
+    private var statusCheckHandler: Handler? = null
+    private var statusCheckRunnable: Runnable? = null
+    
     fun initialize(context: Context) {
         // Load saved preferences
         _openAiKey.value = SharedPrefsUtils.getOpenAIKey(context)
@@ -70,10 +103,27 @@ class MainViewModel : ViewModel() {
         // Initialize AgentStateManager
         AgentStateManager.initialize(context)
         
+        // Initialize Voice Input Manager
+        voiceInputManager = VoiceInputManager(context)
+        _voiceInputAvailable.value = VoiceInputManager.isVoiceRecognitionAvailable(context)
+        
+        // Initialize Notification Manager
+        notificationManager = AgentNotificationManager(context)
+        
+        // Check accessibility service status and auto-enable notifications if running
+        updateAccessibilityAndNotificationStatus(context)
+        
+        // Start periodic accessibility service status monitoring
+        startAccessibilityStatusMonitoring(context)
+        
         // Observe agent state changes from AgentStateManager
         AgentStateManager.agentRunningFlow
             .onEach { isRunning ->
                 _agentRunning.value = isRunning
+                // Update notification when agent state changes (if notifications are enabled)
+                if (_notificationEnabled.value) {
+                    notificationManager?.updateNotification(isRunning)
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -191,5 +241,95 @@ class MainViewModel : ViewModel() {
     
     fun closeJsonDialog() {
         _showJsonDialog.value = false
+    }
+    
+    // Voice Input Actions
+    fun startVoiceInput() {
+        voiceInputManager?.startListening(
+            onComplete = { transcription ->
+                _voiceTranscription.value = transcription
+                _agentInput.value = transcription // Auto-fill the input field
+                _voiceInputState.value = VoiceInputState.COMPLETED
+            },
+            onError = { error ->
+                _voiceTranscription.value = "Error: $error"
+                _voiceInputState.value = VoiceInputState.ERROR
+            },
+            onStateChange = { state ->
+                _voiceInputState.value = state
+                if (state == VoiceInputState.LISTENING) {
+                    _voiceTranscription.value = "Listening..."
+                } else if (state == VoiceInputState.PROCESSING) {
+                    _voiceTranscription.value = "Processing..."
+                }
+            }
+        )
+    }
+    
+    fun stopVoiceInput() {
+        voiceInputManager?.stopListening()
+        _voiceInputState.value = VoiceInputState.IDLE
+    }
+    
+    fun cancelVoiceInput() {
+        voiceInputManager?.cancelListening()
+        _voiceInputState.value = VoiceInputState.IDLE
+        _voiceTranscription.value = ""
+    }
+    
+    // Accessibility and Notification Management - Auto-managed based on accessibility service
+    private fun updateAccessibilityAndNotificationStatus(context: Context) {
+        val accessibilityServiceEnabled = AccessibilityUtils.isAccessibilityServiceEnabled(context)
+        
+        // Update accessibility service status
+        _accessibilityServiceEnabled.value = accessibilityServiceEnabled
+        
+        // Update notification status based on accessibility service
+        if (accessibilityServiceEnabled != _notificationEnabled.value) {
+            _notificationEnabled.value = accessibilityServiceEnabled
+            if (_notificationEnabled.value) {
+                notificationManager?.showPersistentNotification(_agentRunning.value)
+            } else {
+                notificationManager?.hidePersistentNotification()
+            }
+        }
+    }
+    
+    // Method to refresh status (can be called when user returns to app)
+    fun refreshNotificationStatus(context: Context) {
+        updateAccessibilityAndNotificationStatus(context)
+        // Restart monitoring if it's not running
+        if (statusCheckHandler == null) {
+            startAccessibilityStatusMonitoring(context)
+        }
+    }
+    
+    // Start monitoring accessibility service status
+    private fun startAccessibilityStatusMonitoring(context: Context) {
+        statusCheckHandler = Handler(Looper.getMainLooper())
+        statusCheckRunnable = object : Runnable {
+            override fun run() {
+                updateAccessibilityAndNotificationStatus(context)
+                // Check every 2 seconds
+                statusCheckHandler?.postDelayed(this, 2000)
+            }
+        }
+        statusCheckHandler?.post(statusCheckRunnable!!)
+    }
+    
+    // Stop monitoring accessibility service status
+    private fun stopAccessibilityStatusMonitoring() {
+        statusCheckRunnable?.let { runnable ->
+            statusCheckHandler?.removeCallbacks(runnable)
+        }
+        statusCheckHandler = null
+        statusCheckRunnable = null
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        stopAccessibilityStatusMonitoring()
+        voiceInputManager?.cleanup()
+        notificationManager?.hidePersistentNotification()
     }
 } 

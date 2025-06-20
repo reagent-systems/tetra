@@ -53,21 +53,36 @@ class MainActivity : ComponentActivity() {
     private lateinit var updateUtils: UpdateUtils
     private var updateDialogState = mutableStateOf<UpdateUtils.UpdateCheckResult?>(null)
     private var showUpdateDialog = mutableStateOf(false)
+    private lateinit var viewModel: MainViewModel
 
-    // Add permission launcher
-    private val requestPermissionLauncher = registerForActivityResult(
+    // Add permission launchers
+    private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (!isGranted) {
             Toast.makeText(this, "Notifications permission is required for agent status updates", Toast.LENGTH_LONG).show()
         }
     }
+    
+    private val requestMicrophonePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (!isGranted) {
+            Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_LONG).show()
+        }
+    }
 
     private fun checkAndRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+    }
+    
+    private fun checkAndRequestMicrophonePermission() {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestMicrophonePermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }
     }
 
@@ -75,8 +90,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Request notification permission
+        // Request permissions
         checkAndRequestNotificationPermission()
+        checkAndRequestMicrophonePermission()
 
         updateUtils = UpdateUtils(this)
 
@@ -87,7 +103,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SimpleAgentAndroidTheme {
-                val viewModel: MainViewModel = viewModel()
+                viewModel = viewModel()
                 
                 // Initialize ViewModel with context
                 LaunchedEffect(Unit) {
@@ -114,7 +130,16 @@ class MainActivity : ComponentActivity() {
                             },
                             agentOutput = viewModel.agentOutput.value,
                             floatingUiEnabled = viewModel.floatingUiEnabled.value,
-                            onToggleFloatingUi = { viewModel.toggleFloatingUi(this@MainActivity) }
+                            onToggleFloatingUi = { viewModel.toggleFloatingUi(this@MainActivity) },
+                            // Voice Input Parameters
+                            voiceInputState = viewModel.voiceInputState.value,
+                            voiceTranscription = viewModel.voiceTranscription.value,
+                            voiceInputAvailable = viewModel.voiceInputAvailable.value,
+                            onStartVoiceInput = viewModel::startVoiceInput,
+                            onStopVoiceInput = viewModel::stopVoiceInput,
+                            onCancelVoiceInput = viewModel::cancelVoiceInput,
+                            // Status Parameters
+                            accessibilityServiceEnabled = viewModel.accessibilityServiceEnabled.value
                         )
                         "debug" -> DebugScreen(
                             showBoxes = viewModel.showBoxes.value,
@@ -146,6 +171,14 @@ class MainActivity : ComponentActivity() {
                     UpdateDialog()
                 }
             }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Refresh notification status when app comes to foreground
+        if (::viewModel.isInitialized) {
+            viewModel.refreshNotificationStatus(this)
         }
     }
 

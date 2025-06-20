@@ -7,10 +7,12 @@
     android:layout_height="wrap_content"
     android:src="@android:drawable/ic_input_add"
     android:contentDescription="Start Agent"
-    app:tint="@android:color/white"
-    app:backgroundTint="@android:color/holo_green_light"
+    app:tint="@color/reagent_black"
+    app:backgroundTint="@color/reagent_green"
     app:fabSize="normal"
     android:theme="@style/Theme.MaterialComponents.Light"
     style="@style/Widget.MaterialComponents.FloatingActionButton"
-    app:elevation="6dp"
-    app:pressedTranslationZ="12dp" /> 
+    app:elevation="8dp"
+    app:pressedTranslationZ="16dp"
+    app:borderWidth="0dp"
+    app:rippleColor="@color/reagent_white" /> 

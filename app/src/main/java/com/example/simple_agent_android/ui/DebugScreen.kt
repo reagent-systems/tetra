@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,11 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.simple_agent_android.ui.theme.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import com.example.simple_agent_android.utils.LogManager
 
 @Composable
@@ -51,45 +57,87 @@ fun DebugScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ReagentBlack)
-            .padding(24.dp),
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Header Section
+        Text(
+            text = "Debug Tools",
+            style = MaterialTheme.typography.headlineMedium,
+            color = ReagentWhite,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Text(
+            text = "Development & Testing Controls",
+            style = MaterialTheme.typography.bodyMedium,
+            color = ReagentGray,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        
+        // Overlay Controls Card
         Card(
             modifier = Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
             colors = CardDefaults.cardColors(containerColor = ReagentDark),
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.padding(20.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .background(ReagentGreen, shape = RoundedCornerShape(7.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = if (overlayActive) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        tint = ReagentBlue,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Debug Tools",
-                        color = ReagentGreen,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        text = "Overlay Controls",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                
                 Button(
                     onClick = onToggleOverlay,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (overlayActive) ReagentStatusOffline else ReagentGreen),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (overlayActive) ReagentStatusOffline else ReagentBlue
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(text = if (overlayActive) "Hide Overlay" else "Show Overlay", color = ReagentBlack)
+                    Text(
+                        text = if (overlayActive) "Hide Overlay" else "Show Overlay",
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(text = "Vertical Offset: $verticalOffset px", color = ReagentGreen)
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                Text(
+                    text = "Vertical Offset",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ReagentWhite,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "$verticalOffset px",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
                 Slider(
                     value = verticalOffset.toFloat(),
                     onValueChange = { onVerticalOffsetChange(it.toInt()) },
@@ -97,52 +145,123 @@ fun DebugScreen(
                     steps = 200,
                     modifier = Modifier.fillMaxWidth(),
                     colors = SliderDefaults.colors(
-                        thumbColor = ReagentGreen,
+                        thumbColor = ReagentBlue,
                         activeTrackColor = ReagentBlue,
-                        inactiveTrackColor = ReagentGray
+                        inactiveTrackColor = ReagentGray.copy(alpha = 0.3f)
                     )
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        // Data Export Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = ReagentDark),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Code,
+                        contentDescription = null,
+                        tint = ReagentGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Data Export",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
                 Button(
                     onClick = onExportJson,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = ReagentGreen),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(text = "Export Interactive Elements as JSON", color = ReagentWhite)
+                    Text(
+                        text = "Export Interactive Elements",
+                        color = ReagentBlack,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
+        
+        // JSON Output Dialog
         if (jsonOutput != null) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
                 colors = CardDefaults.cardColors(containerColor = ReagentDark),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Interactive Elements JSON", color = ReagentGreen)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = jsonOutput, color = ReagentGray)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = onCloseJson, colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline)) {
-                        Text("Close", color = ReagentWhite)
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Interactive Elements JSON",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentGreen,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp),
+                        colors = CardDefaults.cardColors(containerColor = ReagentBlack),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = jsonOutput,
+                            color = ReagentGray,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onCloseJson,
+                        colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Close", color = ReagentWhite, fontWeight = FontWeight.Medium)
                     }
                 }
             }
         }
 
+        Spacer(modifier = Modifier.height(20.dp))
+        
         // System Logs Card
-        Spacer(modifier = Modifier.height(24.dp))
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
             colors = CardDefaults.cardColors(containerColor = ReagentDark),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(20.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -150,17 +269,18 @@ fun DebugScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .background(ReagentBlue, shape = RoundedCornerShape(7.dp))
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = null,
+                            tint = ReagentBlue,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "System Logs",
-                            color = ReagentBlue,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ReagentWhite,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -169,7 +289,7 @@ fun DebugScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Clear", color = ReagentWhite)
+                            Text("Clear", color = ReagentWhite, fontWeight = FontWeight.Medium)
                         }
                         Button(
                             onClick = {
@@ -181,27 +301,34 @@ fun DebugScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Copy", color = ReagentWhite)
+                            Text("Copy", color = ReagentWhite, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(ReagentBlack.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Card(
+                    modifier = Modifier.fillMaxSize(),
+                    colors = CardDefaults.cardColors(containerColor = ReagentBlack),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(
-                        text = logText.value,
-                        color = ReagentGray,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                    )
+                    Box(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = if (logText.value.isBlank()) "No logs available" else logText.value,
+                            color = if (logText.value.isBlank()) ReagentGray.copy(alpha = 0.6f) else ReagentGray,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 16.sp,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState)
+                        )
+                    }
                 }
             }
         }
+        
+        Spacer(modifier = Modifier.height(20.dp))
     }
 } 

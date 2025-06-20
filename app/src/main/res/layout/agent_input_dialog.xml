@@ -31,12 +31,44 @@
         android:background="@null"
         android:padding="12dp" />
 
+    <!-- Voice Input Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_voice_input"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:src="@android:drawable/ic_btn_speak_now"
+            app:backgroundTint="@color/reagent_blue"
+            app:tint="@color/reagent_white"
+            app:fabSize="mini" />
+
+        <TextView
+            android:id="@+id/tv_voice_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Tap microphone to speak your instruction"
+            android:textColor="@color/reagent_gray"
+            android:textSize="14sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="end"
-        android:layout_marginTop="32dp">
+        android:layout_marginTop="16dp">
 
         <Button
             android:id="@+id/btn_cancel"

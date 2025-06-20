@@ -15,8 +15,11 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.example.simple_agent_android.R
+import com.example.simple_agent_android.utils.VoiceInputManager
+import com.example.simple_agent_android.utils.VoiceInputState
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import android.util.Log
 import androidx.appcompat.view.ContextThemeWrapper
@@ -40,6 +43,10 @@ class FloatingAgentButton(context: Context) {
     private var currentState = State.START
     private var isPaused = false
     private var wasDragged = false
+    
+    // Voice Input
+    private var voiceInputManager: VoiceInputManager? = null
+    private var currentVoiceState = VoiceInputState.IDLE
 
     enum class State {
         START,
@@ -50,7 +57,8 @@ class FloatingAgentButton(context: Context) {
         try {
             Log.d(TAG, "Initializing FloatingAgentButton")
             windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            Log.d(TAG, "WindowManager initialized successfully")
+            voiceInputManager = VoiceInputManager(context)
+            Log.d(TAG, "WindowManager and VoiceInputManager initialized successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing FloatingAgentButton", e)
         }
@@ -80,16 +88,29 @@ class FloatingAgentButton(context: Context) {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                x = 100
-                y = 200
+                gravity = Gravity.BOTTOM or Gravity.END
+                x = 32  // Margin from right edge (16dp converted to pixels)
+                y = 120 // Margin from bottom edge (accounting for navigation bar)
             }
 
-            // Add the FAB to window (start state)
+            // Add the FAB to window (start state) with animation
             Log.d(TAG, "Adding FAB to window")
             try {
+                fab?.alpha = 0f
+                fab?.scaleX = 0f
+                fab?.scaleY = 0f
                 windowManager?.addView(fab, params)
-                Log.d(TAG, "FAB added successfully")
+                
+                // Animate in
+                fab?.animate()
+                    ?.alpha(1f)
+                    ?.scaleX(1f)
+                    ?.scaleY(1f)
+                    ?.setDuration(300)
+                    ?.setInterpolator(AccelerateDecelerateInterpolator())
+                    ?.start()
+                
+                Log.d(TAG, "FAB added successfully with animation")
             } catch (e: Exception) {
                 Log.e(TAG, "Error adding FAB to window", e)
             }
@@ -134,8 +155,10 @@ class FloatingAgentButton(context: Context) {
                     val dy = (event.rawY - initialTouchY).toInt()
                     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                         wasDragged = true
-                        params?.x = initialX + dx
-                        params?.y = initialY + dy
+                        // For BOTTOM|END gravity, we need to invert the deltas
+                        // because x,y represent distances from bottom-right corner
+                        params?.x = initialX - dx  // Invert horizontal movement
+                        params?.y = initialY - dy  // Invert vertical movement
                         try {
                             val currentView = if (currentState == State.START) fab else controlsLayout
                             windowManager?.updateViewLayout(currentView, params)
@@ -338,6 +361,8 @@ class FloatingAgentButton(context: Context) {
             val input = dialogView.findViewById<EditText>(R.id.et_agent_input)
             val btnCancel = dialogView.findViewById<Button>(R.id.btn_cancel)
             val btnStart = dialogView.findViewById<Button>(R.id.btn_start)
+            val btnVoiceInput = dialogView.findViewById<FloatingActionButton>(R.id.btn_voice_input)
+            val tvVoiceStatus = dialogView.findViewById<TextView>(R.id.tv_voice_status)
 
             dialog = AlertDialog.Builder(themedContext, R.style.Theme_SimpleAgentAndroid_Dialog)
                 .setView(dialogView)
@@ -363,6 +388,78 @@ class FloatingAgentButton(context: Context) {
                     // Note: switchToControlState() will be called automatically by the state observer
                 }
                 dialog?.dismiss()
+            }
+            
+            // Voice Input Setup
+            fun updateVoiceUI(state: VoiceInputState, transcription: String = "") {
+                currentVoiceState = state
+                when (state) {
+                    VoiceInputState.IDLE -> {
+                        btnVoiceInput.setImageResource(android.R.drawable.ic_btn_speak_now)
+                        btnVoiceInput.backgroundTintList = themedContext.getColorStateList(R.color.reagent_blue)
+                        tvVoiceStatus.text = if (voiceInputManager?.isAvailable() == true) {
+                            "Tap microphone to speak your instruction"
+                        } else {
+                            "Voice input not available"
+                        }
+                        tvVoiceStatus.setTextColor(themedContext.getColor(R.color.reagent_gray))
+                    }
+                    VoiceInputState.LISTENING -> {
+                        btnVoiceInput.setImageResource(android.R.drawable.ic_media_pause)
+                        btnVoiceInput.backgroundTintList = themedContext.getColorStateList(R.color.reagent_green)
+                        tvVoiceStatus.text = "Listening for your voice..."
+                        tvVoiceStatus.setTextColor(themedContext.getColor(R.color.reagent_green))
+                    }
+                    VoiceInputState.PROCESSING -> {
+                        btnVoiceInput.setImageResource(android.R.drawable.ic_media_pause)
+                        btnVoiceInput.backgroundTintList = themedContext.getColorStateList(R.color.reagent_blue)
+                        tvVoiceStatus.text = "Processing speech..."
+                        tvVoiceStatus.setTextColor(themedContext.getColor(R.color.reagent_blue))
+                    }
+                    VoiceInputState.COMPLETED -> {
+                        btnVoiceInput.setImageResource(android.R.drawable.ic_btn_speak_now)
+                        btnVoiceInput.backgroundTintList = themedContext.getColorStateList(R.color.reagent_blue)
+                        tvVoiceStatus.text = "\"$transcription\""
+                        tvVoiceStatus.setTextColor(themedContext.getColor(R.color.reagent_white))
+                    }
+                    VoiceInputState.ERROR -> {
+                        btnVoiceInput.setImageResource(android.R.drawable.ic_btn_speak_now)
+                        btnVoiceInput.backgroundTintList = themedContext.getColorStateList(android.R.color.holo_red_dark)
+                        tvVoiceStatus.text = transcription.removePrefix("Error: ")
+                        tvVoiceStatus.setTextColor(themedContext.getColor(android.R.color.holo_red_dark))
+                    }
+                }
+            }
+            
+            // Initialize voice UI
+            updateVoiceUI(VoiceInputState.IDLE)
+            
+            // Voice input button click handler
+            btnVoiceInput.setOnClickListener {
+                when (currentVoiceState) {
+                    VoiceInputState.IDLE, VoiceInputState.COMPLETED, VoiceInputState.ERROR -> {
+                        voiceInputManager?.startListening(
+                            onComplete = { transcription ->
+                                input.setText(transcription)
+                                updateVoiceUI(VoiceInputState.COMPLETED, transcription)
+                            },
+                            onError = { error ->
+                                updateVoiceUI(VoiceInputState.ERROR, "Error: $error")
+                            },
+                            onStateChange = { state ->
+                                updateVoiceUI(state)
+                            }
+                        )
+                    }
+                    VoiceInputState.LISTENING -> {
+                        voiceInputManager?.stopListening()
+                        updateVoiceUI(VoiceInputState.IDLE)
+                    }
+                    VoiceInputState.PROCESSING -> {
+                        voiceInputManager?.cancelListening()
+                        updateVoiceUI(VoiceInputState.IDLE)
+                    }
+                }
             }
 
             dialog?.show()
@@ -391,9 +488,11 @@ class FloatingAgentButton(context: Context) {
                 }
             }
             dialog?.dismiss()
+            voiceInputManager?.cleanup()
             fab = null
             controlsLayout = null
             dialog = null
+            voiceInputManager = null
             Log.d(TAG, "Floating button hidden successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error in hide()", e)
