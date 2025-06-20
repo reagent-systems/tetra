@@ -3,6 +3,8 @@ package com.example.simple_agent_android.viewmodel
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simple_agent_android.agentcore.AgentStateManager
@@ -10,6 +12,8 @@ import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.OverlayPermissionUtils
 import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class MainViewModel : ViewModel() {
     
@@ -63,10 +67,15 @@ class MainViewModel : ViewModel() {
         _verticalOffset.value = SharedPrefsUtils.getVerticalOffset(context)
         _overlayActive.value = BoundingBoxAccessibilityService.isOverlayActive()
         
-        // Observe agent state changes
-        viewModelScope.launch {
-            // This will be updated when we improve AgentStateManager
-        }
+        // Initialize AgentStateManager
+        AgentStateManager.initialize(context)
+        
+        // Observe agent state changes from AgentStateManager
+        AgentStateManager.agentRunningFlow
+            .onEach { isRunning ->
+                _agentRunning.value = isRunning
+            }
+            .launchIn(viewModelScope)
     }
     
     // UI Actions
@@ -112,12 +121,12 @@ class MainViewModel : ViewModel() {
                 _agentOutput.value += output + "\n"
             }
         )
-        _agentRunning.value = true
+        // Note: _agentRunning.value will be updated automatically via the flow observer
     }
     
     fun stopAgent() {
         AgentStateManager.stopAgent()
-        _agentRunning.value = false
+        // Note: _agentRunning.value will be updated automatically via the flow observer
     }
     
     // Settings Actions

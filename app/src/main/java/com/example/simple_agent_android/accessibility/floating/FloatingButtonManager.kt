@@ -4,10 +4,17 @@ import android.content.Context
 import android.util.Log
 import com.example.simple_agent_android.agentcore.AgentStateManager
 import com.example.simple_agent_android.ui.floating.FloatingAgentButton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class FloatingButtonManager(private val context: Context) {
     private val TAG = "FloatingButtonManager"
     private var floatingAgentButton: FloatingAgentButton? = null
+    private val scope = CoroutineScope(Dispatchers.Main)
+    private var stateObserverJob: Job? = null
 
     fun showFloatingButton() {
         try {
@@ -42,6 +49,9 @@ class FloatingButtonManager(private val context: Context) {
                     }
                     show()
                 }
+                
+                // Start observing agent state changes
+                startObservingAgentState()
                 Log.d(TAG, "Floating button created and shown")
             } else {
                 Log.d(TAG, "Floating button already exists")
@@ -54,12 +64,36 @@ class FloatingButtonManager(private val context: Context) {
     fun hideFloatingButton() {
         try {
             Log.d(TAG, "Removing floating button")
+            stopObservingAgentState()
             floatingAgentButton?.hide()
             floatingAgentButton = null
             Log.d(TAG, "Floating button removed successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error removing floating button", e)
         }
+    }
+
+    private fun startObservingAgentState() {
+        stateObserverJob?.cancel()
+        stateObserverJob = AgentStateManager.agentRunningFlow
+            .onEach { isRunning ->
+                Log.d(TAG, "Agent state changed: isRunning = $isRunning")
+                floatingAgentButton?.let { button ->
+                    if (isRunning) {
+                        // Agent started - switch to control state
+                        button.switchToControlState()
+                    } else {
+                        // Agent stopped - switch back to start state
+                        button.switchToStartState()
+                    }
+                }
+            }
+            .launchIn(scope)
+    }
+
+    private fun stopObservingAgentState() {
+        stateObserverJob?.cancel()
+        stateObserverJob = null
     }
 
     fun cleanup() {

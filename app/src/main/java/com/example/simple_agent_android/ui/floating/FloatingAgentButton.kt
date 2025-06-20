@@ -156,7 +156,7 @@ class FloatingAgentButton(context: Context) {
                             R.id.btn_stop -> {
                                 Log.d(TAG, "Stop button clicked")
                                 onStopAgent?.invoke()
-                                switchToStartState()
+                                // Note: switchToStartState() will be called automatically by the state observer
                             }
                             R.id.fab_start_agent -> {
                                 Log.d(TAG, "FAB clicked")
@@ -181,7 +181,7 @@ class FloatingAgentButton(context: Context) {
         )
     }
 
-    private fun switchToControlState() {
+    fun switchToControlState() {
         if (currentState == State.CONTROL) return
         
         wasDragged = false // Reset drag state when switching
@@ -360,7 +360,7 @@ class FloatingAgentButton(context: Context) {
                     // Reset pause state when starting a new agent
                     isPaused = false
                     onStartAgent?.invoke(instruction)
-                    switchToControlState()
+                    // Note: switchToControlState() will be called automatically by the state observer
                 }
                 dialog?.dismiss()
             }

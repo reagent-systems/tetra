@@ -1,25 +1,37 @@
 package com.example.simple_agent_android.agentcore
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import com.example.simple_agent_android.utils.NotificationUtils
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object AgentStateManager {
-    private var agentRunningState = mutableStateOf(false)
+    private val _agentRunning = mutableStateOf(false)
+    val agentRunning: State<Boolean> = _agentRunning
+    
+    private val _agentRunningFlow = MutableStateFlow(false)
+    val agentRunningFlow: StateFlow<Boolean> = _agentRunningFlow.asStateFlow()
+    
     private var context: Context? = null
 
     fun initialize(appContext: Context) {
         context = appContext.applicationContext
     }
 
-    fun isAgentRunning(): Boolean = agentRunningState.value
-
-    fun getAgentRunningState(): MutableState<Boolean> = agentRunningState
+    fun isAgentRunning(): Boolean = _agentRunning.value
 
     fun startAgent(instruction: String, apiKey: String, appContext: Context, onOutput: ((String) -> Unit)? = null) {
+        if (_agentRunning.value) {
+            // Agent is already running, don't start again
+            return
+        }
+        
         context = appContext.applicationContext
-        agentRunningState.value = true
+        _agentRunning.value = true
+        _agentRunningFlow.value = true
         NotificationUtils.showAgentStartedNotification(appContext)
         
         AgentOrchestrator.runAgent(
@@ -34,8 +46,14 @@ object AgentStateManager {
     }
 
     fun stopAgent() {
+        if (!_agentRunning.value) {
+            // Agent is already stopped
+            return
+        }
+        
         AgentOrchestrator.stopAgent()
-        agentRunningState.value = false
+        _agentRunning.value = false
+        _agentRunningFlow.value = false
         context?.let { NotificationUtils.showAgentStoppedNotification(it) }
     }
 

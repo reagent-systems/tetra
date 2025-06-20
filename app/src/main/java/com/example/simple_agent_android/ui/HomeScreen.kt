@@ -17,7 +17,6 @@ import com.example.simple_agent_android.R
 import com.example.simple_agent_android.ui.theme.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.example.simple_agent_android.agentcore.AgentStateManager
 
 @Composable
 fun HomeScreen(
@@ -31,20 +30,6 @@ fun HomeScreen(
     floatingUiEnabled: Boolean,
     onToggleFloatingUi: () -> Unit
 ) {
-    // Observe the shared agent state
-    val sharedAgentRunning by AgentStateManager.getAgentRunningState()
-
-    // Use the shared state to update the local state
-    LaunchedEffect(sharedAgentRunning) {
-        if (sharedAgentRunning != agentRunning) {
-            if (sharedAgentRunning) {
-                onStartAgent()
-            } else {
-                onStopAgent()
-            }
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
