@@ -16,7 +16,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
+        android:theme="@style/Theme.SimpleAgentAndroid"
         tools:targetApi="31">
         
         <provider
@@ -41,9 +41,9 @@
         </activity>
         
         <service
-            android:name=".BoundingBoxAccessibilityService"
+            android:name=".accessibility.service.BoundingBoxAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>

@@ -1,5 +1,6 @@
-package com.example.simple_agent_android
+package com.example.simple_agent_android.accessibility.service
 
+import android.accessibilityservice.AccessibilityService
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray

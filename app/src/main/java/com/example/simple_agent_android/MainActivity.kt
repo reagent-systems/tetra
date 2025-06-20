@@ -53,6 +53,7 @@ import com.example.simple_agent_android.utils.OverlayPermissionUtils
 import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.UpdateUtils
 import com.example.simple_agent_android.utils.NotificationUtils
+import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {

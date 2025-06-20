@@ -1,6 +1,7 @@
 package com.example.simple_agent_android.agentcore
 
-import com.example.simple_agent_android.BoundingBoxAccessibilityService
+import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
+import org.json.JSONArray
 
 object AgentActions {
     fun getScreenJson(): String {
@@ -42,7 +43,7 @@ object AgentActions {
         while (System.currentTimeMillis() - start < timeoutMs) {
             val json = BoundingBoxAccessibilityService.getInteractiveElementsJson()
             try {
-                val arr = org.json.JSONArray(json)
+                val arr = JSONArray(json)
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
                     if ((text == null || obj.optString("text") == text) &&
