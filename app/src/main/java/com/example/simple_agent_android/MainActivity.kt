@@ -1,12 +1,9 @@
 package com.example.simple_agent_android
 
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -39,8 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.example.simple_agent_android.agentcore.AgentOrchestrator
-import com.example.simple_agent_android.agentcore.AgentStateManager
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.simple_agent_android.ui.AboutScreen
 import com.example.simple_agent_android.ui.DebugScreen
 import com.example.simple_agent_android.ui.HomeScreen
@@ -49,15 +45,11 @@ import com.example.simple_agent_android.ui.SidebarDrawer
 import com.example.simple_agent_android.ui.theme.ReagentDark
 import com.example.simple_agent_android.ui.theme.ReagentWhite
 import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
-import com.example.simple_agent_android.utils.OverlayPermissionUtils
-import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.UpdateUtils
-import com.example.simple_agent_android.utils.NotificationUtils
-import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
+import com.example.simple_agent_android.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val TAG = MainActivity::class.java.simpleName
     private lateinit var updateUtils: UpdateUtils
     private var updateDialogState = mutableStateOf<UpdateUtils.UpdateCheckResult?>(null)
     private var showUpdateDialog = mutableStateOf(false)
@@ -81,7 +73,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate")
         enableEdgeToEdge()
 
         // Request notification permission
@@ -96,129 +87,51 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SimpleAgentAndroidTheme {
-                var drawerOpen by remember { mutableStateOf(false) }
-                var selectedScreen by remember { mutableStateOf("home") }
-                var agentRunning by remember { mutableStateOf(false) }
-                var overlayActive by remember { mutableStateOf(BoundingBoxAccessibilityService.isOverlayActive()) }
-                var showBoxes by remember { mutableStateOf(true) }
-                var verticalOffset by remember { mutableStateOf(SharedPrefsUtils.getVerticalOffset(this@MainActivity)) }
-                val prefs = getSharedPreferences("agent_prefs", Context.MODE_PRIVATE)
-                var openAiKey by remember { mutableStateOf(prefs.getString("openai_key", "") ?: "") }
-                var agentInput by remember { mutableStateOf("") }
-                var showJsonDialog by remember { mutableStateOf(false) }
-                var jsonOutput by remember { mutableStateOf("") }
-                var settingsSaved by remember { mutableStateOf(false) }
-                var agentOutput by remember { mutableStateOf("") }
-                var floatingUiEnabled by remember { mutableStateOf(false) }
+                val viewModel: MainViewModel = viewModel()
+                
+                // Initialize ViewModel with context
+                LaunchedEffect(Unit) {
+                    viewModel.initialize(this@MainActivity)
+                }
 
                 SidebarDrawer(
-                    drawerOpen = drawerOpen,
-                    onDrawerOpen = { drawerOpen = true },
-                    onDrawerClose = { drawerOpen = false },
-                    selectedScreen = selectedScreen,
-                    onSelectScreen = {
-                        selectedScreen = it
-                        drawerOpen = false
-                        if (it != "settings") settingsSaved = false
-                    },
+                    drawerOpen = viewModel.drawerOpen.value,
+                    onDrawerOpen = viewModel::openDrawer,
+                    onDrawerClose = viewModel::closeDrawer,
+                    selectedScreen = viewModel.selectedScreen.value,
+                    onSelectScreen = viewModel::selectScreen,
                 ) {
-                    when (selectedScreen) {
+                    when (viewModel.selectedScreen.value) {
                         "home" -> HomeScreen(
-                            agentRunning = agentRunning,
-                            onStartAgent = {
-                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
-                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
-                                } else {
-                                    if (!BoundingBoxAccessibilityService.isOverlayActive()) {
-                                        BoundingBoxAccessibilityService.startOverlay(false)
-                                    } else {
-                                        BoundingBoxAccessibilityService.setOverlayEnabled(false)
-                                    }
-                                    agentOutput = ""
-                                    AgentStateManager.startAgent(
-                                        instruction = agentInput,
-                                        apiKey = openAiKey,
-                                        appContext = this@MainActivity,
-                                        onOutput = { output ->
-                                            agentOutput += output + "\n"
-                                        }
-                                    )
-                                }
-                            },
-                            onStopAgent = {
-                                AgentStateManager.stopAgent()
-                            },
-                            agentInput = agentInput,
-                            onAgentInputChange = { agentInput = it },
+                            agentRunning = viewModel.agentRunning.value,
+                            onStartAgent = { viewModel.startAgent(this@MainActivity) },
+                            onStopAgent = viewModel::stopAgent,
+                            agentInput = viewModel.agentInput.value,
+                            onAgentInputChange = viewModel::updateAgentInput,
                             onEnableAccessibility = {
                                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                 startActivity(intent)
                             },
-                            agentOutput = agentOutput,
-                            floatingUiEnabled = floatingUiEnabled,
-                            onToggleFloatingUi = {
-                                Log.d(TAG, "Toggle floating UI requested, current state: $floatingUiEnabled")
-                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
-                                    Log.d(TAG, "No overlay permission, requesting...")
-                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
-                                } else {
-                                    try {
-                                        floatingUiEnabled = !floatingUiEnabled
-                                        Log.d(TAG, "New floating UI state: $floatingUiEnabled")
-                                        if (floatingUiEnabled) {
-                                            Log.d(TAG, "Showing floating button")
-                                            BoundingBoxAccessibilityService.showFloatingButton()
-                                        } else {
-                                            Log.d(TAG, "Hiding floating button")
-                                            BoundingBoxAccessibilityService.hideFloatingButton()
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error toggling floating UI", e)
-                                        floatingUiEnabled = false
-                                    }
-                                }
-                            }
+                            agentOutput = viewModel.agentOutput.value,
+                            floatingUiEnabled = viewModel.floatingUiEnabled.value,
+                            onToggleFloatingUi = { viewModel.toggleFloatingUi(this@MainActivity) }
                         )
                         "debug" -> DebugScreen(
-                            showBoxes = showBoxes,
-                            onToggleBoxes = {
-                                showBoxes = !showBoxes
-                                BoundingBoxAccessibilityService.setOverlayEnabled(showBoxes)
-                            },
-                            overlayActive = overlayActive,
-                            onToggleOverlay = {
-                                if (!OverlayPermissionUtils.hasOverlayPermission(this@MainActivity)) {
-                                    OverlayPermissionUtils.requestOverlayPermission(this@MainActivity)
-                                } else {
-                                    if (BoundingBoxAccessibilityService.isOverlayActive()) {
-                                        BoundingBoxAccessibilityService.stopOverlay()
-                                        overlayActive = false
-                                    } else {
-                                        BoundingBoxAccessibilityService.startOverlay(showBoxes)
-                                        overlayActive = true
-                                    }
-                                }
-                            },
-                            verticalOffset = verticalOffset,
-                            onVerticalOffsetChange = {
-                                verticalOffset = it
-                                SharedPrefsUtils.setVerticalOffset(this@MainActivity, verticalOffset)
-                            },
-                            onExportJson = {
-                                jsonOutput = BoundingBoxAccessibilityService.getInteractiveElementsJson()
-                                showJsonDialog = true
-                            },
-                            jsonOutput = if (showJsonDialog) jsonOutput else null,
-                            onCloseJson = { showJsonDialog = false }
+                            showBoxes = viewModel.showBoxes.value,
+                            onToggleBoxes = viewModel::toggleShowBoxes,
+                            overlayActive = viewModel.overlayActive.value,
+                            onToggleOverlay = { viewModel.toggleOverlay(this@MainActivity) },
+                            verticalOffset = viewModel.verticalOffset.value,
+                            onVerticalOffsetChange = { viewModel.updateVerticalOffset(this@MainActivity, it) },
+                            onExportJson = viewModel::exportJson,
+                            jsonOutput = if (viewModel.showJsonDialog.value) viewModel.jsonOutput.value else null,
+                            onCloseJson = viewModel::closeJsonDialog
                         )
                         "settings" -> SettingsScreen(
-                            openAiKey = openAiKey,
-                            onOpenAiKeyChange = { openAiKey = it },
-                            onSave = {
-                                prefs.edit().putString("openai_key", openAiKey).apply()
-                                settingsSaved = true
-                            },
-                            saved = settingsSaved,
+                            openAiKey = viewModel.openAiKey.value,
+                            onOpenAiKeyChange = viewModel::updateOpenAiKey,
+                            onSave = { viewModel.saveSettings(this@MainActivity) },
+                            saved = viewModel.settingsSaved.value,
                             onCheckForUpdates = {
                                 lifecycleScope.launch {
                                     checkForUpdates(showAlways = true)
@@ -397,23 +310,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-fun hasOverlayPermission(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        Settings.canDrawOverlays(context)
-    } else {
-        true
-    }
-}
-
-fun requestOverlayPermission(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:" + context.packageName)
-        )
-        context.startActivity(intent)
     }
 }
