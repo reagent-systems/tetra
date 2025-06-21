@@ -39,7 +39,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.simple_agent_android.ui.AboutScreen
 import com.example.simple_agent_android.ui.DebugScreen
+import com.example.simple_agent_android.ui.FeedbackScreen
 import com.example.simple_agent_android.ui.HomeScreen
+import com.example.simple_agent_android.ui.OnboardingScreen
 import com.example.simple_agent_android.ui.SettingsScreen
 import com.example.simple_agent_android.ui.SidebarDrawer
 import com.example.simple_agent_android.ui.theme.ReagentDark
@@ -108,15 +110,51 @@ class MainActivity : ComponentActivity() {
                 // Initialize ViewModel with context
                 LaunchedEffect(Unit) {
                     viewModel.initialize(this@MainActivity)
+                    
+                    // Check if onboarding should be shown
+                    if (viewModel.shouldShowOnboarding(this@MainActivity)) {
+                        viewModel.startOnboarding()
+                    }
                 }
 
-                SidebarDrawer(
-                    drawerOpen = viewModel.drawerOpen.value,
-                    onDrawerOpen = viewModel::openDrawer,
-                    onDrawerClose = viewModel::closeDrawer,
-                    selectedScreen = viewModel.selectedScreen.value,
-                    onSelectScreen = viewModel::selectScreen,
-                ) {
+                // Show onboarding if needed
+                if (viewModel.showOnboarding.value) {
+                    val currentStep = viewModel.getCurrentOnboardingStep()
+                    if (currentStep != null) {
+                        OnboardingScreen(
+                            viewModel = viewModel,
+                            currentStep = currentStep,
+                            currentStepIndex = viewModel.currentOnboardingStep.value,
+                            totalSteps = viewModel.onboardingSteps.value.size,
+                            onNextStep = viewModel::nextOnboardingStep,
+                            onSkipStep = viewModel::skipOnboardingStep,
+                            onCompleteOnboarding = {
+                                viewModel.markOnboardingComplete(this@MainActivity)
+                                viewModel.completeOnboarding()
+                            },
+                            onNavigateToScreen = viewModel::handleOnboardingNavigation,
+                            onDismiss = viewModel::dismissOnboarding,
+                            onToggleOverlay = { viewModel.toggleOverlay(this@MainActivity) },
+                            onEnableAccessibility = {
+                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                startActivity(intent)
+                            },
+                            onUpdateVerticalOffset = { offset ->
+                                viewModel.updateVerticalOffset(this@MainActivity, offset)
+                            },
+                            onSaveApiKey = {
+                                viewModel.saveSettings(this@MainActivity)
+                            }
+                        )
+                    }
+                } else {
+                                        SidebarDrawer(
+                        drawerOpen = viewModel.drawerOpen.value,
+                        onDrawerOpen = viewModel::openDrawer,
+                        onDrawerClose = viewModel::closeDrawer,
+                        selectedScreen = viewModel.selectedScreen.value,
+                        onSelectScreen = viewModel::selectScreen,
+                    ) {
                     when (viewModel.selectedScreen.value) {
                         "home" -> HomeScreen(
                             agentRunning = viewModel.agentRunning.value,
@@ -139,7 +177,9 @@ class MainActivity : ComponentActivity() {
                             onStopVoiceInput = viewModel::stopVoiceInput,
                             onCancelVoiceInput = viewModel::cancelVoiceInput,
                             // Status Parameters
-                            accessibilityServiceEnabled = viewModel.accessibilityServiceEnabled.value
+                            accessibilityServiceEnabled = viewModel.accessibilityServiceEnabled.value,
+                            // Onboarding Parameters
+                            onShowTutorial = viewModel::startOnboarding
                         )
                         "debug" -> DebugScreen(
                             showBoxes = viewModel.showBoxes.value,
@@ -161,14 +201,17 @@ class MainActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     checkForUpdates(showAlways = true)
                                 }
-                            }
+                            },
+                            onRedoOnboarding = viewModel::startOnboarding
                         )
+                        "feedback" -> FeedbackScreen(viewModel)
                         "about" -> AboutScreen()
                         else -> {}
                     }
 
-                    // Update dialog
-                    UpdateDialog()
+                        // Update dialog
+                        UpdateDialog()
+                    }
                 }
             }
         }

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.School
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
@@ -30,7 +31,8 @@ fun SettingsScreen(
     onOpenAiKeyChange: (String) -> Unit,
     onSave: () -> Unit,
     saved: Boolean,
-    onCheckForUpdates: () -> Unit
+    onCheckForUpdates: () -> Unit,
+    onRedoOnboarding: () -> Unit = {}
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -206,7 +208,7 @@ fun SettingsScreen(
                 }
                 
                 Text(
-                    text = "Keep your app up to date with the latest features and improvements",
+                    text = "Keep your app up to date and manage your setup experience",
                     style = MaterialTheme.typography.bodySmall,
                     color = ReagentGray,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -221,6 +223,29 @@ fun SettingsScreen(
                     Text(
                         "Check for Updates", 
                         color = ReagentWhite,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedButton(
+                    onClick = onRedoOnboarding,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ReagentBlue
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = ReagentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Redo App Onboarding", 
                         fontWeight = FontWeight.Medium
                     )
                 }

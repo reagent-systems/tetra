@@ -15,6 +15,9 @@ import com.example.simple_agent_android.utils.VoiceInputState
 import com.example.simple_agent_android.utils.AccessibilityUtils
 import com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService
 import com.example.simple_agent_android.notification.AgentNotificationManager
+import com.example.simple_agent_android.data.OnboardingStep
+import com.example.simple_agent_android.data.OnboardingSteps
+import com.example.simple_agent_android.data.OnboardingState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -89,6 +92,32 @@ class MainViewModel : ViewModel() {
     // Accessibility Service State
     private val _accessibilityServiceEnabled = mutableStateOf(false)
     val accessibilityServiceEnabled: State<Boolean> = _accessibilityServiceEnabled
+    
+    // Feedback Form State (persisted across navigation)
+    private val _feedbackUserName = mutableStateOf("")
+    val feedbackUserName: State<String> = _feedbackUserName
+    
+    private val _feedbackText = mutableStateOf("")
+    val feedbackText: State<String> = _feedbackText
+    
+    private val _feedbackCategory = mutableStateOf("Bug Report")
+    val feedbackCategory: State<String> = _feedbackCategory
+    
+    private val _feedbackScreenshots = mutableStateOf<List<String>>(emptyList())
+    val feedbackScreenshots: State<List<String>> = _feedbackScreenshots
+    
+    // Onboarding State
+    private val _onboardingState = mutableStateOf(OnboardingState.NOT_STARTED)
+    val onboardingState: State<OnboardingState> = _onboardingState
+    
+    private val _currentOnboardingStep = mutableStateOf(0)
+    val currentOnboardingStep: State<Int> = _currentOnboardingStep
+    
+    private val _onboardingSteps = mutableStateOf(OnboardingSteps.getAllSteps())
+    val onboardingSteps: State<List<OnboardingStep>> = _onboardingSteps
+    
+    private val _showOnboarding = mutableStateOf(false)
+    val showOnboarding: State<Boolean> = _showOnboarding
     
     // Handler for periodic accessibility service status checks
     private var statusCheckHandler: Handler? = null
@@ -277,6 +306,38 @@ class MainViewModel : ViewModel() {
         _voiceTranscription.value = ""
     }
     
+    // Feedback Form Actions
+    fun updateFeedbackUserName(name: String) {
+        _feedbackUserName.value = name
+    }
+    
+    fun updateFeedbackText(text: String) {
+        _feedbackText.value = text
+    }
+    
+    fun updateFeedbackCategory(category: String) {
+        _feedbackCategory.value = category
+    }
+    
+    fun addFeedbackScreenshot(screenshot: String) {
+        _feedbackScreenshots.value = _feedbackScreenshots.value + screenshot
+    }
+    
+    fun removeFeedbackScreenshot(index: Int) {
+        val currentList = _feedbackScreenshots.value.toMutableList()
+        if (index in currentList.indices) {
+            currentList.removeAt(index)
+            _feedbackScreenshots.value = currentList
+        }
+    }
+    
+    fun clearFeedbackForm() {
+        _feedbackUserName.value = ""
+        _feedbackText.value = ""
+        _feedbackCategory.value = "Bug Report"
+        _feedbackScreenshots.value = emptyList()
+    }
+    
     // Accessibility and Notification Management - Auto-managed based on accessibility service
     private fun updateAccessibilityAndNotificationStatus(context: Context) {
         val accessibilityServiceEnabled = AccessibilityUtils.isAccessibilityServiceEnabled(context)
@@ -324,6 +385,60 @@ class MainViewModel : ViewModel() {
         }
         statusCheckHandler = null
         statusCheckRunnable = null
+    }
+    
+    // Onboarding Actions
+    fun startOnboarding() {
+        _onboardingState.value = OnboardingState.IN_PROGRESS
+        _currentOnboardingStep.value = 0
+        _showOnboarding.value = true
+    }
+    
+    fun nextOnboardingStep() {
+        val currentIndex = _currentOnboardingStep.value
+        if (currentIndex < _onboardingSteps.value.size - 1) {
+            _currentOnboardingStep.value = currentIndex + 1
+        } else {
+            completeOnboarding()
+        }
+    }
+    
+    fun skipOnboardingStep() {
+        nextOnboardingStep()
+    }
+    
+    fun completeOnboarding() {
+        _onboardingState.value = OnboardingState.COMPLETED
+        _showOnboarding.value = false
+        _selectedScreen.value = "home"
+    }
+    
+    fun dismissOnboarding() {
+        _onboardingState.value = OnboardingState.SKIPPED
+        _showOnboarding.value = false
+    }
+    
+    fun shouldShowOnboarding(context: Context): Boolean {
+        // Check if onboarding should be shown (first time user)
+        val hasCompletedOnboarding = SharedPrefsUtils.hasCompletedOnboarding(context)
+        return !hasCompletedOnboarding && _onboardingState.value == OnboardingState.NOT_STARTED
+    }
+    
+    fun markOnboardingComplete(context: Context) {
+        SharedPrefsUtils.setOnboardingCompleted(context, true)
+        _onboardingState.value = OnboardingState.COMPLETED
+    }
+    
+    fun getCurrentOnboardingStep(): OnboardingStep? {
+        val index = _currentOnboardingStep.value
+        return if (index < _onboardingSteps.value.size) {
+            _onboardingSteps.value[index]
+        } else null
+    }
+    
+    fun handleOnboardingNavigation(targetScreen: String) {
+        _selectedScreen.value = targetScreen
+        // Don't close drawer during onboarding to keep tutorial context
     }
     
     override fun onCleared() {

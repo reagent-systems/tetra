@@ -60,6 +60,11 @@ fun SidebarDrawer(
                     onClick = { onSelectScreen("settings"); onDrawerClose() }
                 )
                 DrawerItem(
+                    label = stringResource(R.string.nav_feedback),
+                    selected = selectedScreen == "feedback",
+                    onClick = { onSelectScreen("feedback"); onDrawerClose() }
+                )
+                DrawerItem(
                     label = stringResource(R.string.nav_about),
                     selected = selectedScreen == "about",
                     onClick = { onSelectScreen("about"); onDrawerClose() }

@@ -4,6 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import android.os.Environment
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +19,8 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,14 +49,36 @@ fun DebugScreen(
     onCloseJson: () -> Unit
 ) {
     val context = LocalContext.current
-    val logText = remember { mutableStateOf(LogManager.getFullLog()) }
-    val scrollState = rememberScrollState()
+    val logLineCount = remember { mutableStateOf(0) }
 
-    // Update log text every second
+    // Update log line count every 2 seconds (less frequent to reduce lag)
     LaunchedEffect(Unit) {
         while (true) {
-            logText.value = LogManager.getFullLog()
-            kotlinx.coroutines.delay(1000)
+            val fullLog = LogManager.getFullLog()
+            logLineCount.value = if (fullLog.isBlank()) 0 else fullLog.lines().size
+            kotlinx.coroutines.delay(2000)
+        }
+    }
+
+    fun exportLogsToFile() {
+        try {
+            val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
+            val fileName = "simple_agent_logs_$timestamp.txt"
+            
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, fileName)
+            
+            val logContent = LogManager.getFullLog()
+            FileWriter(file).use { writer ->
+                writer.write("Simple Agent Debug Logs\n")
+                writer.write("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n")
+                writer.write("=".repeat(50) + "\n\n")
+                writer.write(logContent)
+            }
+            
+            Toast.makeText(context, "Logs exported to Downloads/$fileName", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to export logs: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -255,7 +284,6 @@ fun DebugScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .shadow(8.dp, RoundedCornerShape(16.dp)),
             colors = CardDefaults.cardColors(containerColor = ReagentDark),
             shape = RoundedCornerShape(16.dp)
@@ -264,68 +292,91 @@ fun DebugScreen(
                 modifier = Modifier.padding(20.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = null,
-                            tint = ReagentBlue,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "System Logs",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = ReagentWhite,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { LogManager.clearLog() },
-                            colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Clear", color = ReagentWhite, fontWeight = FontWeight.Medium)
-                        }
-                        Button(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("Agent Logs", logText.value)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Copy", color = ReagentWhite, fontWeight = FontWeight.Medium)
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Article,
+                        contentDescription = null,
+                        tint = ReagentBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "System Logs",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
+                // Log Statistics
                 Card(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                     colors = CardDefaults.cardColors(containerColor = ReagentBlack),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Box(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = null,
+                            tint = ReagentGreen,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (logText.value.isBlank()) "No logs available" else logText.value,
-                            color = if (logText.value.isBlank()) ReagentGray.copy(alpha = 0.6f) else ReagentGray,
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodySmall,
-                            lineHeight = 16.sp,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(scrollState)
+                            text = "Log entries: ${logLineCount.value}",
+                            color = ReagentWhite,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
+                
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { LogManager.clearLog() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Clear Logs", color = ReagentWhite, fontWeight = FontWeight.Medium)
+                    }
+                    
+                    Button(
+                        onClick = { exportLogsToFile() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = ReagentWhite,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Export", color = ReagentWhite, fontWeight = FontWeight.Medium)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    text = "Logs are stored in memory and exported to Downloads folder when needed. This improves performance by avoiding UI lag.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray.copy(alpha = 0.8f),
+                    lineHeight = 16.sp
+                )
             }
         }
         

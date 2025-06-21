@@ -43,7 +43,9 @@ fun HomeScreen(
     onStopVoiceInput: () -> Unit,
     onCancelVoiceInput: () -> Unit,
     // Status Parameters
-    accessibilityServiceEnabled: Boolean
+    accessibilityServiceEnabled: Boolean,
+    // Onboarding Parameters
+    onShowTutorial: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -151,6 +153,22 @@ fun HomeScreen(
                 Text(
                     text = if (floatingUiEnabled) "Disable Floating UI" else "Enable Floating UI",
                     color = ReagentWhite,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            OutlinedButton(
+                onClick = onShowTutorial,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = ReagentBlue
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Show Setup Tutorial",
                     fontWeight = FontWeight.Medium
                 )
             }
