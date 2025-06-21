@@ -414,6 +414,11 @@ class MainViewModel : ViewModel() {
     }
     
     fun dismissOnboarding() {
+        // If overlay is active during onboarding dismissal, stop it
+        if (_overlayActive.value) {
+            BoundingBoxAccessibilityService.stopOverlay()
+            _overlayActive.value = false
+        }
         _onboardingState.value = OnboardingState.SKIPPED
         _showOnboarding.value = false
     }

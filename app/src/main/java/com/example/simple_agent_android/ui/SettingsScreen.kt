@@ -245,7 +245,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Redo App Onboarding", 
+                        "App Onboarding", 
                         fontWeight = FontWeight.Medium
                     )
                 }

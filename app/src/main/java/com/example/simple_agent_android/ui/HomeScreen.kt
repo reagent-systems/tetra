@@ -157,21 +157,7 @@ fun HomeScreen(
                 )
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            OutlinedButton(
-                onClick = onShowTutorial,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ReagentBlue
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "Show Setup Tutorial",
-                    fontWeight = FontWeight.Medium
-                )
-            }
+
             
             Spacer(modifier = Modifier.height(20.dp))
         }

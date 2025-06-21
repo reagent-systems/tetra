@@ -170,8 +170,8 @@ fun DebugScreen(
                 Slider(
                     value = verticalOffset.toFloat(),
                     onValueChange = { onVerticalOffsetChange(it.toInt()) },
-                    valueRange = -100f..100f,
-                    steps = 200,
+                    valueRange = -200f..200f,
+                    steps = 400,
                     modifier = Modifier.fillMaxWidth(),
                     colors = SliderDefaults.colors(
                         thumbColor = ReagentBlue,
