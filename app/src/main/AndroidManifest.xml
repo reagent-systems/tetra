@@ -52,8 +52,9 @@
         
         <receiver
             android:name=".notification.NotificationActionReceiver"
-            android:exported="false">
-            <intent-filter>
+            android:exported="false"
+            android:enabled="true">
+            <intent-filter android:priority="1000">
                 <action android:name="com.example.simple_agent_android.START_AGENT" />
                 <action android:name="com.example.simple_agent_android.STOP_AGENT" />
                 <action android:name="com.example.simple_agent_android.VOICE_INPUT" />

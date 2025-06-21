@@ -37,7 +37,8 @@ data class ScreenAnalysis(
     val mainContent: List<UIElement>,
     val navigation: List<UIElement>,
     val screenType: ScreenType,
-    val loadingState: LoadingState
+    val loadingState: LoadingState,
+    val packageName: String? = null
 )
 
 enum class ScreenType {
@@ -68,6 +69,7 @@ object ScreenAnalyzer {
         try {
             val elements = parseElements(screenJson)
             val interactableElements = elements.filter { it.isClickable && it.isEnabled }
+            val packageName = extractPackageName(screenJson)
             
             return ScreenAnalysis(
                 allElements = elements,
@@ -78,7 +80,8 @@ object ScreenAnalyzer {
                 mainContent = categorizeAsMainContent(elements),
                 navigation = categorizeAsNavigation(elements),
                 screenType = determineScreenType(elements),
-                loadingState = determineLoadingState(elements)
+                loadingState = determineLoadingState(elements),
+                packageName = packageName
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error analyzing screen", e)
@@ -94,6 +97,19 @@ object ScreenAnalyzer {
                 loadingState = LoadingState.ERROR
             )
         }
+    }
+    
+    private fun extractPackageName(screenJson: String): String? {
+        try {
+            val jsonArray = JSONArray(screenJson)
+            if (jsonArray.length() > 0) {
+                val firstElement = jsonArray.getJSONObject(0)
+                return firstElement.optString("packageName").takeIf { it.isNotEmpty() }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting package name", e)
+        }
+        return null
     }
     
     private fun parseElements(screenJson: String): List<UIElement> {

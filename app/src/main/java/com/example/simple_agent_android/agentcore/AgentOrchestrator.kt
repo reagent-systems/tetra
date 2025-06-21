@@ -104,8 +104,11 @@ ${Prompts.getDateReminder()}""")
                         LogManager.log(TAG, "Step $step: Loop detected - traditional: ${loopAnalysis.isLooping}, context-aware: $isStuckInLoop")
                         onOutput?.invoke("Loop detected - analyzing situation...")
                         
-                        // Check if task might actually be complete
-                        if (TaskContextManager.shouldTaskComplete()) {
+                        // Only check task completion if we've made reasonable progress
+                        val context = TaskContextManager.getCurrentContext()
+                        val hasSignificantProgress = context?.lastSignificantProgress ?: 0 >= 2
+                        
+                        if (hasSignificantProgress && TaskContextManager.shouldTaskComplete(currentScreenAnalysis, lastAction)) {
                             LogManager.log(TAG, "Step $step: Task appears complete despite loop detection")
                             onOutput?.invoke("Task appears to be complete - stopping")
                             return@launch
@@ -149,10 +152,14 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                         messages.removeAt(messages.size - 1)
                     }
                     
+                    // Advance step and record screen state
+                    TaskContextManager.advanceStep()
+                    
                     // Add enhanced screen information with analysis
                     val enhancedScreenInfo = """Current screen analysis:
 Screen Type: ${currentScreenAnalysis.screenType}
 Loading State: ${currentScreenAnalysis.loadingState}
+Package: ${currentScreenAnalysis.packageName ?: "Unknown"}
 High Priority Elements: ${currentScreenAnalysis.interactableElements.take(10).map { 
     "\"${it.displayText}\" (${it.className.substringAfterLast('.')}) at (${it.bounds.centerX}, ${it.bounds.centerY}) priority:${it.priority}"
 }.joinToString(", ")}
