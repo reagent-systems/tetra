@@ -22,6 +22,10 @@ import java.time.format.DateTimeFormatter
 import com.example.simple_agent_android.agentcore.metacognition.Prompts
 import com.example.simple_agent_android.utils.LogManager
 import com.example.simple_agent_android.utils.LogManager.LogLevel
+import com.example.simple_agent_android.sentry.AgentErrorTracker
+import com.example.simple_agent_android.sentry.SentryManager
+import com.example.simple_agent_android.sentry.sentryAgentOperation
+import com.example.simple_agent_android.sentry.trackUserAction
 
 object AgentOrchestrator {
     private const val TAG = "AGENT_CORE"
@@ -31,7 +35,14 @@ object AgentOrchestrator {
 
     fun runAgent(instruction: String, apiKey: String, context: Context, onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
         stopping = false
+        
+        // Track agent start
+        trackUserAction("agent_start", "home", mapOf("instruction_length" to instruction.length))
+        val agentTransaction = AgentErrorTracker.startAgentTransaction(instruction)
+        val startTime = System.currentTimeMillis()
+        
         agentJob = CoroutineScope(Dispatchers.Default).launch {
+            var step = 0 // Move step variable outside try block
             try {
                 LogManager.log(TAG, "Agent started with instruction: $instruction")
                 onOutput?.invoke("Agent started with instruction: $instruction")
@@ -57,8 +68,6 @@ ${Prompts.getDateReminder()}""")
                 // Initialize task context and screen analysis
                 val taskContext = TaskContextManager.initializeTask(instruction, plan)
                 var previousScreenAnalysis: ScreenAnalysis? = null
-                
-                var step = 0
                 var lastAction: String? = null
                 // Start with initial message history
                 val baseMessages = mutableListOf(systemPrompt, userInstruction)
@@ -104,6 +113,18 @@ ${Prompts.getDateReminder()}""")
                         LogManager.log(TAG, "Step $step: Loop detected - traditional: ${loopAnalysis.isLooping}, context-aware: $isStuckInLoop")
                         onOutput?.invoke("Loop detected - analyzing situation...")
                         
+                        // Track loop detection
+                        AgentErrorTracker.trackLoopDetection(
+                            instruction = instruction,
+                            loopSteps = listOf(step),
+                            loopType = if (loopAnalysis.isLooping) "traditional" else "context_aware",
+                            context = mapOf(
+                                "step" to step,
+                                "loop_analysis" to loopAnalysis.toString(),
+                                "stuck_in_loop" to isStuckInLoop
+                            )
+                        )
+                        
                         // Only check task completion if we've made reasonable progress
                         val context = TaskContextManager.getCurrentContext()
                         val hasSignificantProgress = context?.lastSignificantProgress ?: 0 >= 2
@@ -139,6 +160,17 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                         if (shouldStopDueToLoop) {
                             LogManager.log(TAG, "Step $step: Stopping due to unrecoverable loop")
                             onOutput?.invoke("Stopping due to unrecoverable loop - unable to make progress")
+                            
+                            // Track task completion failure
+                            AgentErrorTracker.trackTaskCompletionError(
+                                instruction = instruction,
+                                totalSteps = step,
+                                lastSuccessfulStep = step - 1,
+                                reason = "unrecoverable_loop",
+                                context = mapOf("loop_type" to "unrecoverable")
+                            )
+                            
+                            agentTransaction.finish()
                             return@launch
                         }
 
@@ -192,9 +224,21 @@ Raw screen JSON: $screenJson"""
                         coroutineContext.ensureActive()
                         LogManager.log(TAG, "Step $step: LLM response: $response")
                         if (response == null || response.has("error")) {
-                            LogManager.log(TAG, "LLM error: ${response?.optString("error")}", LogLevel.ERROR)
+                            val errorMessage = response?.optString("error") ?: "Unknown LLM error"
+                            LogManager.log(TAG, "LLM error: $errorMessage", LogLevel.ERROR)
                             LogManager.log(TAG, "Stopping agent due to LLM error.", LogLevel.ERROR)
-                            onOutput?.invoke("LLM error: ${response?.optString("error")}")
+                            onOutput?.invoke("LLM error: $errorMessage")
+                            
+                            // Track API error
+                            AgentErrorTracker.trackTaskCompletionError(
+                                instruction = instruction,
+                                totalSteps = step,
+                                lastSuccessfulStep = step - 1,
+                                reason = "llm_api_error",
+                                context = mapOf("error_message" to errorMessage)
+                            )
+                            
+                            agentTransaction.finish()
                             break
                         }
                         val choices = response.optJSONArray("choices") ?: break
@@ -212,15 +256,20 @@ Raw screen JSON: $screenJson"""
                                 val arguments = JSONObject(function.getString("arguments"))
                                 
                                 // Execute the tool call and get the result
-                                val toolResult = when (name) {
-                                    "simulate_press" -> {
-                                        val centerX = arguments.getInt("center_x")
-                                        val centerY = arguments.getInt("center_y")
-                                        LogManager.log(TAG, "Step $step: Simulating press at center ($centerX, $centerY)")
-                                        Handler(Looper.getMainLooper()).post {
-                                            AgentActions.simulatePressAt(centerX, centerY)
-                                        }
-                                        val actionDescription = "Pressed at center ($centerX, $centerY)"
+                                val toolResult = sentryAgentOperation(
+                                    operation = name,
+                                    step = step,
+                                    instruction = instruction
+                                ) {
+                                    when (name) {
+                                        "simulate_press" -> {
+                                            val centerX = arguments.getInt("center_x")
+                                            val centerY = arguments.getInt("center_y")
+                                            LogManager.log(TAG, "Step $step: Simulating press at center ($centerX, $centerY)")
+                                            Handler(Looper.getMainLooper()).post {
+                                                AgentActions.simulatePressAt(centerX, centerY)
+                                            }
+                                            val actionDescription = "Pressed at center ($centerX, $centerY)"
                                         val elementPressed = currentScreenAnalysis.interactableElements.find { 
                                             kotlin.math.abs(it.bounds.centerX - centerX) < 50 && kotlin.math.abs(it.bounds.centerY - centerY) < 50 
                                         }?.displayText
@@ -315,13 +364,14 @@ Raw screen JSON: $screenJson"""
                                         onOutput?.invoke("Swiped from ($startX, $startY) to ($endX, $endY)")
                                         "Swiped from ($startX, $startY) to ($endX, $endY)"
                                     }
-                                    else -> {
-                                        LogManager.log(TAG, "Step $step: Unknown tool call: $name")
-                                        lastAction = "Unknown tool call: $name"
-                                        onOutput?.invoke("Unknown tool call: $name")
-                                        "Unknown tool call: $name"
+                                        else -> {
+                                            LogManager.log(TAG, "Step $step: Unknown tool call: $name")
+                                            lastAction = "Unknown tool call: $name"
+                                            onOutput?.invoke("Unknown tool call: $name")
+                                            "Unknown tool call: $name"
+                                        }
                                     }
-                                }
+                                } ?: "Tool execution failed"
 
                                 // Add the tool result to messages
                                 messages.add(mapOf(
@@ -356,6 +406,17 @@ Raw screen JSON: $screenJson"""
                                 if (shouldStop) {
                                     LogManager.log(TAG, "Step $step: Metacognition decided to stop.")
                                     onOutput?.invoke("Agent decided to stop.")
+                                    
+                                    // Track successful task completion
+                                    val executionTime = System.currentTimeMillis() - startTime
+                                    AgentErrorTracker.trackTaskSuccess(
+                                        instruction = instruction,
+                                        totalSteps = step,
+                                        executionTimeMs = executionTime,
+                                        context = mapOf("completion_method" to "metacognition_stop")
+                                    )
+                                    
+                                    agentTransaction.finish()
                                     return@launch
                                 }
                             }
@@ -375,6 +436,20 @@ Raw screen JSON: $screenJson"""
                     } catch (e: Exception) {
                         LogManager.log(TAG, "Error in agent loop: ${e.message}", LogLevel.ERROR)
                         onOutput?.invoke("Error: ${e.message}")
+                        
+                        // Track agent execution error
+                        AgentErrorTracker.trackAgentError(
+                            error = e,
+                            agentStep = step,
+                            instruction = instruction,
+                            context = mapOf(
+                                "error_location" to "agent_main_loop",
+                                "last_action" to (lastAction ?: "none")
+                            )
+                        )
+                        
+                        agentTransaction.throwable = e
+                        agentTransaction.finish()
                         break
                     }
                     delay(300)
@@ -383,6 +458,22 @@ Raw screen JSON: $screenJson"""
             } finally {
                 LogManager.log(TAG, "Agent stopped")
                 onOutput?.invoke("Agent stopped")
+                
+                // Track agent stop - step is accessible here since it's defined in the launch scope
+                trackUserAction("agent_stop", "home", mapOf(
+                    "total_steps" to step,
+                    "execution_time_ms" to (System.currentTimeMillis() - startTime)
+                ))
+                
+                // Ensure transaction is finished
+                try {
+                    if (!agentTransaction.isFinished) {
+                        agentTransaction.finish()
+                    }
+                } catch (e: Exception) {
+                    // Ignore transaction finish errors
+                }
+                
                 onAgentStopped?.invoke()
             }
         }

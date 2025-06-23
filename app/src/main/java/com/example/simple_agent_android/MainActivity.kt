@@ -50,6 +50,7 @@ import com.example.simple_agent_android.ui.theme.SimpleAgentAndroidTheme
 import com.example.simple_agent_android.utils.UpdateUtils
 import com.example.simple_agent_android.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import io.sentry.Sentry
 
 class MainActivity : ComponentActivity() {
     private lateinit var updateUtils: UpdateUtils
@@ -90,6 +91,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+    // Initialize Sentry error tracking
+    com.example.simple_agent_android.sentry.SentryManager.initialize(this)
+
         enableEdgeToEdge()
 
         // Request permissions

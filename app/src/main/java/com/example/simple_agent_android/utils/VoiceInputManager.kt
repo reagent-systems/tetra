@@ -10,6 +10,8 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import java.util.Locale
+import com.example.simple_agent_android.sentry.AgentErrorTracker
+import com.example.simple_agent_android.sentry.trackFeatureUsage
 
 enum class VoiceInputState {
     IDLE,
@@ -86,6 +88,18 @@ class VoiceInputManager(private val context: Context) {
                     val errorMsg = getErrorMessage(error)
                     _errorMessage.value = errorMsg
                     updateState(VoiceInputState.ERROR)
+                    
+                    // Track voice input error
+                    AgentErrorTracker.trackVoiceInputError(
+                        error = Exception("Speech recognition error: $error - $errorMsg"),
+                        stage = "recording",
+                        context = mapOf(
+                            "error_code" to error,
+                            "error_message" to errorMsg,
+                            "was_listening" to isListening
+                        )
+                    )
+                    
                     onError?.invoke(errorMsg)
                     isListening = false
                 }
@@ -117,6 +131,18 @@ class VoiceInputManager(private val context: Context) {
                         Log.d(TAG, "Using transcription: '$bestResult'")
                         _transcriptionText.value = bestResult
                         updateState(VoiceInputState.COMPLETED)
+                        
+                        // Track successful voice input
+                        trackFeatureUsage(
+                            feature = "voice_input",
+                            action = "transcription_success",
+                            success = true,
+                            metadata = mapOf(
+                                "transcription_length" to bestResult.length,
+                                "confidence_available" to (confidence != null)
+                            )
+                        )
+                        
                         onTranscriptionComplete?.invoke(bestResult)
                     } else {
                         // Check if we had any partial results that we can use
@@ -166,6 +192,16 @@ class VoiceInputManager(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing speech recognizer", e)
+            
+            // Track initialization error
+            AgentErrorTracker.trackVoiceInputError(
+                error = e,
+                stage = "initialization",
+                context = mapOf(
+                    "recognition_available" to SpeechRecognizer.isRecognitionAvailable(context)
+                )
+            )
+            
             speechRecognizer = null
         }
     }
@@ -220,6 +256,17 @@ class VoiceInputManager(private val context: Context) {
                 Log.d(TAG, "  $key: ${intent.extras?.get(key)}")
             }
             
+            // Track voice input start
+            trackFeatureUsage(
+                feature = "voice_input",
+                action = "start_listening",
+                success = true,
+                metadata = mapOf(
+                    "recognition_available" to SpeechRecognizer.isRecognitionAvailable(context),
+                    "language" to Locale.getDefault().toString()
+                )
+            )
+            
             speechRecognizer?.startListening(intent)
             Log.d(TAG, "Started listening")
         } catch (e: Exception) {
@@ -227,6 +274,17 @@ class VoiceInputManager(private val context: Context) {
             val errorMsg = "Failed to start voice recognition: ${e.message}"
             _errorMessage.value = errorMsg
             updateState(VoiceInputState.ERROR)
+            
+            // Track voice input start error
+            AgentErrorTracker.trackVoiceInputError(
+                error = e,
+                stage = "start_listening",
+                context = mapOf(
+                    "error_message" to errorMsg,
+                    "recognition_available" to SpeechRecognizer.isRecognitionAvailable(context)
+                )
+            )
+            
             onError(errorMsg)
             isListening = false
         }

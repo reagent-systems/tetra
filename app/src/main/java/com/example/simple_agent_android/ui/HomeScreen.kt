@@ -23,6 +23,8 @@ import com.example.simple_agent_android.ui.components.VoiceInputRow
 import com.example.simple_agent_android.utils.VoiceInputState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.example.simple_agent_android.sentry.trackUserAction
+import com.example.simple_agent_android.sentry.trackFeatureUsage
 
 @Composable
 fun HomeScreen(
@@ -113,7 +115,10 @@ fun HomeScreen(
                 if (!accessibilityServiceEnabled) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = onEnableAccessibility,
+                        onClick = {
+                            trackUserAction("enable_accessibility", "home")
+                            onEnableAccessibility()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
                         shape = RoundedCornerShape(12.dp)
@@ -143,7 +148,10 @@ fun HomeScreen(
             )
             
             Button(
-                onClick = onToggleFloatingUi,
+                onClick = {
+                    trackFeatureUsage("floating_ui", if (floatingUiEnabled) "disable" else "enable")
+                    onToggleFloatingUi()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (floatingUiEnabled) ReagentGreen else ReagentBlue
@@ -301,7 +309,14 @@ fun FuturisticAgentButton(
     val onClick = if (running) onStop else onStart
     
     Button(
-        onClick = onClick,
+        onClick = {
+            if (running) {
+                trackUserAction("stop_agent", "home")
+            } else {
+                trackUserAction("start_agent", "home")
+            }
+            onClick()
+        },
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()

@@ -6,6 +6,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import com.example.simple_agent_android.sentry.ApiErrorTracker
+import com.example.simple_agent_android.sentry.sentryApiCall
 
 class LLMClient(private val apiKey: String) {
     private val client = OkHttpClient()
@@ -121,45 +123,123 @@ class LLMClient(private val apiKey: String) {
     ))
 
     fun sendWithTools(messages: List<Map<String, String>>): JSONObject? {
-        try {
+        return sentryApiCall(
+            endpoint = apiUrl,
+            operation = "chat_completion_with_tools"
+        ) {
+            val startTime = System.currentTimeMillis()
+            
             val json = JSONObject().apply {
                 put("model", model)
                 put("messages", JSONArray(messages.map { JSONObject(it) }))
                 put("tools", tools)
                 put("tool_choice", "auto")
             }
-            val body = json.toString().toRequestBody("application/json".toMediaTypeOrNull())
+            
+            val requestBody = json.toString()
+            val body = requestBody.toRequestBody("application/json".toMediaTypeOrNull())
             val request = Request.Builder()
                 .url(apiUrl)
                 .post(body)
                 .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
                 .build()
-            android.util.Log.i("LLMClient", "Request payload: ${json.toString().take(1000)}")
+                
+            android.util.Log.i("LLMClient", "Request payload: ${requestBody.take(1000)}")
+            
             client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
+                val duration = System.currentTimeMillis() - startTime
+                
                 android.util.Log.i("LLMClient", "HTTP status: ${response.code}")
                 android.util.Log.i("LLMClient", "Response body: ${responseBody?.take(1000)}")
+                
                 if (!response.isSuccessful) {
                     android.util.Log.e("LLMClient", "Unsuccessful response: ${response.code} ${responseBody}")
+                    
+                    // Track specific API errors
+                    when (response.code) {
+                        401 -> ApiErrorTracker.trackAuthError(
+                            endpoint = apiUrl,
+                            errorMessage = responseBody,
+                            responseCode = response.code
+                        )
+                        429 -> ApiErrorTracker.trackRateLimit(
+                            endpoint = apiUrl,
+                            retryAfter = response.header("Retry-After")
+                        )
+                        402, 403 -> {
+                            // Parse structured error if possible
+                            try {
+                                if (responseBody != null) {
+                                    ApiErrorTracker.trackStructuredApiError(
+                                        endpoint = apiUrl,
+                                        responseCode = response.code,
+                                        responseBody = responseBody,
+                                        requestContext = mapOf(
+                                            "model" to model,
+                                            "message_count" to messages.size,
+                                            "has_tools" to true
+                                        )
+                                    )
+                                } else {
+                                    ApiErrorTracker.trackQuotaError(
+                                        endpoint = apiUrl,
+                                        errorMessage = "HTTP ${response.code}",
+                                        quotaType = "billing"
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                ApiErrorTracker.trackQuotaError(
+                                    endpoint = apiUrl,
+                                    errorMessage = "HTTP ${response.code}",
+                                    quotaType = "billing"
+                                )
+                            }
+                        }
+                        else -> ApiErrorTracker.trackOpenAIError(
+                            error = Exception("HTTP ${response.code}: ${responseBody}"),
+                            endpoint = apiUrl,
+                            requestBody = requestBody.take(500),
+                            responseCode = response.code,
+                            responseBody = responseBody,
+                            apiKey = apiKey
+                        )
+                    }
+                    
                     val errorJson = JSONObject()
                     errorJson.put("error", "HTTP ${response.code}")
                     errorJson.put("body", responseBody ?: "null")
-                    return errorJson
+                    return@sentryApiCall errorJson
                 }
+                
                 if (responseBody == null) {
                     android.util.Log.e("LLMClient", "Null response body")
+                    
+                    ApiErrorTracker.trackOpenAIError(
+                        error = Exception("Null response body"),
+                        endpoint = apiUrl,
+                        requestBody = requestBody.take(500),
+                        responseCode = response.code,
+                        apiKey = apiKey
+                    )
+                    
                     val errorJson = JSONObject()
                     errorJson.put("error", "Null response body")
-                    return errorJson
+                    return@sentryApiCall errorJson
                 }
-                return JSONObject(responseBody)
+                
+                // Track successful API call
+                ApiErrorTracker.trackApiSuccess(
+                    endpoint = apiUrl,
+                    responseCode = response.code,
+                    responseTimeMs = duration,
+                    requestSize = requestBody.length,
+                    responseSize = responseBody.length
+                )
+                
+                return@sentryApiCall JSONObject(responseBody)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("LLMClient", "Exception in sendWithTools", e)
-            val errorJson = JSONObject()
-            errorJson.put("error", e.toString())
-            return errorJson
         }
     }
 } 

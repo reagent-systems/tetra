@@ -10,6 +10,8 @@ import android.view.accessibility.AccessibilityEvent
 import com.example.simple_agent_android.accessibility.floating.FloatingButtonManager
 import com.example.simple_agent_android.accessibility.overlay.OverlayManager
 import com.example.simple_agent_android.accessibility.service.InteractiveElementUtils
+import com.example.simple_agent_android.sentry.AgentErrorTracker
+import com.example.simple_agent_android.sentry.trackFeatureUsage
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
     private val TAG = "BoundingBoxService"
@@ -44,11 +46,31 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
 
         fun simulatePressAt(x: Int, y: Int) {
-            instance?.gestureHandler?.simulatePress(x, y)
+            try {
+                instance?.gestureHandler?.simulatePress(x, y)
+                trackFeatureUsage("accessibility_gesture", "press", true, mapOf("x" to x, "y" to y))
+            } catch (e: Exception) {
+                AgentErrorTracker.trackAccessibilityError(
+                    error = e,
+                    action = "simulate_press",
+                    elementInfo = mapOf("x" to x, "y" to y)
+                )
+                throw e
+            }
         }
 
         fun setTextAt(x: Int, y: Int, text: String) {
-            instance?.nodeHandler?.setTextAt(x, y, text)
+            try {
+                instance?.nodeHandler?.setTextAt(x, y, text)
+                trackFeatureUsage("accessibility_text", "set_text", true, mapOf("x" to x, "y" to y, "text_length" to text.length))
+            } catch (e: Exception) {
+                AgentErrorTracker.trackAccessibilityError(
+                    error = e,
+                    action = "set_text",
+                    elementInfo = mapOf("x" to x, "y" to y, "text_length" to text.length)
+                )
+                throw e
+            }
         }
 
         fun showFloatingButton() {
@@ -79,12 +101,23 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service onCreate")
-        instance = this
-        overlayManager = OverlayManager(this)
-        overlayManager.setRootNodeProvider { rootInActiveWindow }
-        floatingButtonManager = FloatingButtonManager(this)
-        gestureHandler = AccessibilityGestureHandler(this)
-        nodeHandler = AccessibilityNodeHandler(this)
+        
+        try {
+            instance = this
+            overlayManager = OverlayManager(this)
+            overlayManager.setRootNodeProvider { rootInActiveWindow }
+            floatingButtonManager = FloatingButtonManager(this)
+            gestureHandler = AccessibilityGestureHandler(this)
+            nodeHandler = AccessibilityNodeHandler(this)
+            
+            trackFeatureUsage("accessibility_service", "created", true)
+        } catch (e: Exception) {
+            AgentErrorTracker.trackAccessibilityError(
+                error = e,
+                action = "service_create"
+            )
+            throw e
+        }
     }
 
     override fun onDestroy() {
@@ -97,17 +130,28 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         Log.d(TAG, "Service onServiceConnected")
         super.onServiceConnected()
-        val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or 
-                        AccessibilityEvent.TYPE_VIEW_CLICKED or 
-                        AccessibilityEvent.TYPE_VIEW_FOCUSED
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 100
-            flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or 
-                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        
+        try {
+            val info = AccessibilityServiceInfo().apply {
+                eventTypes = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or 
+                            AccessibilityEvent.TYPE_VIEW_CLICKED or 
+                            AccessibilityEvent.TYPE_VIEW_FOCUSED
+                feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+                notificationTimeout = 100
+                flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or 
+                        AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
+            serviceInfo = info
+            Log.d(TAG, "Service initialized successfully")
+            
+            trackFeatureUsage("accessibility_service", "connected", true)
+        } catch (e: Exception) {
+            AgentErrorTracker.trackAccessibilityError(
+                error = e,
+                action = "service_connect"
+            )
+            throw e
         }
-        serviceInfo = info
-        Log.d(TAG, "Service initialized successfully")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
