@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/completion_screen_background"
+    android:padding="20dp"
+    android:elevation="12dp">
+
+    <!-- Header Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_check_circle"
+            android:tint="@color/reagent_green"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Task Completed"
+            android:textColor="@color/reagent_white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btn_dismiss"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_close"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/reagent_gray"
+            android:contentDescription="Dismiss" />
+
+    </LinearLayout>
+
+    <!-- Task Summary -->
+    <TextView
+        android:id="@+id/tv_task_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Your agent has successfully completed the requested task."
+        android:textColor="@color/reagent_gray"
+        android:textSize="14sp"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Quick Actions Section -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="What would you like to do next?"
+        android:textColor="@color/reagent_white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <!-- New Task Input -->
+    <EditText
+        android:id="@+id/et_new_task"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:hint="What would you like me to do next?"
+        android:textColor="@color/reagent_white"
+        android:textColorHint="@color/reagent_gray"
+        android:background="@drawable/edit_text_background"
+        android:padding="12dp"
+        android:minLines="2"
+        android:maxLines="4"
+        android:inputType="textMultiLine|textCapSentences"
+        android:textSize="14sp" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btn_start_task"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Start Task"
+            android:textColor="@color/reagent_black"
+            android:backgroundTint="@color/reagent_blue_bright"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            style="@style/Widget.Material3.Button" />
+
+    </LinearLayout>
+
+    <!-- Bottom Actions -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btn_settings"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Settings"
+            android:textColor="@color/reagent_gray"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_feedback"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Feedback"
+            android:textColor="@color/reagent_gray"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+</LinearLayout> 

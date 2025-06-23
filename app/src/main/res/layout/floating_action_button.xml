@@ -8,7 +8,7 @@
     android:src="@android:drawable/ic_input_add"
     android:contentDescription="Start Agent"
     app:tint="@color/reagent_black"
-    app:backgroundTint="@color/reagent_green"
+    app:backgroundTint="@color/reagent_blue_bright"
     app:fabSize="normal"
     android:theme="@style/Theme.MaterialComponents.Light"
     style="@style/Widget.MaterialComponents.FloatingActionButton"

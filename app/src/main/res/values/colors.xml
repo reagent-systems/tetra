@@ -23,6 +23,7 @@
     <color name="reagent_dark">#181C20</color>
     <color name="reagent_green">#00FF66</color>
     <color name="reagent_blue">#0099FF</color>
+    <color name="reagent_blue_bright">#00BBFF</color>
     <color name="reagent_gray">#A0A0A0</color>
     <color name="reagent_white">#FFFFFF</color>
     <color name="reagent_status_online">#00FF66</color>

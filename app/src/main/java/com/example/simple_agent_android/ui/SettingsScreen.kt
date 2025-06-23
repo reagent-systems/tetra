@@ -32,7 +32,9 @@ fun SettingsScreen(
     onSave: () -> Unit,
     saved: Boolean,
     onCheckForUpdates: () -> Unit,
-    onRedoOnboarding: () -> Unit = {}
+    onRedoOnboarding: () -> Unit = {},
+    completionScreenEnabled: Boolean = true,
+    onCompletionScreenToggle: (Boolean) -> Unit = {}
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -171,6 +173,81 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        // User Experience Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = ReagentDark),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = ReagentGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "User Experience",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
+                Text(
+                    text = "Customize how the agent interacts with you",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                // Completion Screen Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Task Completion Screen",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ReagentWhite,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Show suggestions when tasks complete",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ReagentGray,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    Switch(
+                        checked = completionScreenEnabled,
+                        onCheckedChange = onCompletionScreenToggle,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ReagentWhite,
+                            checkedTrackColor = ReagentGreen,
+                            uncheckedThumbColor = ReagentGray,
+                            uncheckedTrackColor = ReagentGray.copy(alpha = 0.3f)
+                        )
+                    )
                 }
             }
         }

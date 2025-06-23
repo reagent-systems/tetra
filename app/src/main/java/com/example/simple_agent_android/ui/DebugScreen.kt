@@ -279,7 +279,60 @@ fun DebugScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        
+
+        // Test Controls Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = ReagentDark),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BugReport,
+                        contentDescription = null,
+                        tint = ReagentStatusOffline,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Test Controls",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
+                Button(
+                    onClick = { 
+                        try {
+                            com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService.testCompletionScreen()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Test Completion Screen",
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // System Logs Card
         Card(
             modifier = Modifier
@@ -312,7 +365,7 @@ fun DebugScreen(
                 
                 // Log Statistics
                 Card(
-                    modifier = Modifier
+                            modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
                     colors = CardDefaults.cardColors(containerColor = ReagentBlack),
@@ -343,21 +396,21 @@ fun DebugScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = { LogManager.clearLog() },
+                        Button(
+                            onClick = { LogManager.clearLog() },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
+                            colors = ButtonDefaults.buttonColors(containerColor = ReagentStatusOffline),
                         shape = RoundedCornerShape(12.dp)
-                    ) {
+                        ) {
                         Text("Clear Logs", color = ReagentWhite, fontWeight = FontWeight.Medium)
-                    }
+                        }
                     
-                    Button(
+                        Button(
                         onClick = { exportLogsToFile() },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
+                            colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
                         shape = RoundedCornerShape(12.dp)
-                    ) {
+                        ) {
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = null,
@@ -366,12 +419,12 @@ fun DebugScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Export", color = ReagentWhite, fontWeight = FontWeight.Medium)
+                        }
                     }
-                }
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
-                Text(
+                    Text(
                     text = "Logs are stored in memory and exported to Downloads folder when needed. This improves performance by avoiding UI lag.",
                     style = MaterialTheme.typography.bodySmall,
                     color = ReagentGray.copy(alpha = 0.8f),

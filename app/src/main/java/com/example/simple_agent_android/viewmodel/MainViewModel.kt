@@ -51,6 +51,9 @@ class MainViewModel : ViewModel() {
     private val _settingsSaved = mutableStateOf(false)
     val settingsSaved: State<Boolean> = _settingsSaved
     
+    private val _completionScreenEnabled = mutableStateOf(true)
+    val completionScreenEnabled: State<Boolean> = _completionScreenEnabled
+    
     // Overlay State
     private val _overlayActive = mutableStateOf(false)
     val overlayActive: State<Boolean> = _overlayActive
@@ -127,6 +130,7 @@ class MainViewModel : ViewModel() {
         // Load saved preferences
         _openAiKey.value = SharedPrefsUtils.getOpenAIKey(context)
         _verticalOffset.value = SharedPrefsUtils.getVerticalOffset(context)
+        _completionScreenEnabled.value = SharedPrefsUtils.isCompletionScreenEnabled(context)
         _overlayActive.value = BoundingBoxAccessibilityService.isOverlayActive()
         
         // Initialize AgentStateManager
@@ -215,7 +219,12 @@ class MainViewModel : ViewModel() {
     
     fun saveSettings(context: Context) {
         SharedPrefsUtils.setOpenAIKey(context, _openAiKey.value)
+        SharedPrefsUtils.setCompletionScreenEnabled(context, _completionScreenEnabled.value)
         _settingsSaved.value = true
+    }
+    
+    fun updateCompletionScreenEnabled(enabled: Boolean) {
+        _completionScreenEnabled.value = enabled
     }
     
     // Overlay Actions

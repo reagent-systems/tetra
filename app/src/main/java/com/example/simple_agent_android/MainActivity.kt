@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
-                } else {
+                                } else {
                                         SidebarDrawer(
                         drawerOpen = viewModel.drawerOpen.value,
                         onDrawerOpen = viewModel::openDrawer,
@@ -202,17 +202,19 @@ class MainActivity : ComponentActivity() {
                                     checkForUpdates(showAlways = true)
                                 }
                             },
-                            onRedoOnboarding = viewModel::startOnboarding
+                            onRedoOnboarding = viewModel::startOnboarding,
+                            completionScreenEnabled = viewModel.completionScreenEnabled.value,
+                            onCompletionScreenToggle = viewModel::updateCompletionScreenEnabled
                         )
                         "feedback" -> FeedbackScreen(viewModel)
                         "about" -> AboutScreen()
                         else -> {}
                     }
 
-                        // Update dialog
-                        UpdateDialog()
-                    }
+                    // Update dialog
+                    UpdateDialog()
                 }
+            }
             }
         }
     }

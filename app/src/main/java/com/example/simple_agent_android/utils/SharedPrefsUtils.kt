@@ -10,6 +10,7 @@ object SharedPrefsUtils {
     private const val VERTICAL_OFFSET_KEY = "vertical_offset"
     private const val OPENAI_KEY = "openai_key"
     private const val ONBOARDING_COMPLETED_KEY = "onboarding_completed"
+    private const val COMPLETION_SCREEN_ENABLED_KEY = "completion_screen_enabled"
 
     fun getVerticalOffset(context: Context): Int {
         return getSharedPrefs(context, OVERLAY_PREFS)
@@ -44,6 +45,18 @@ object SharedPrefsUtils {
         getSharedPrefs(context, ONBOARDING_PREFS)
             .edit()
             .putBoolean(ONBOARDING_COMPLETED_KEY, completed)
+            .apply()
+    }
+
+    fun isCompletionScreenEnabled(context: Context): Boolean {
+        return getSharedPrefs(context, AGENT_PREFS)
+            .getBoolean(COMPLETION_SCREEN_ENABLED_KEY, true) // Default to enabled
+    }
+
+    fun setCompletionScreenEnabled(context: Context, enabled: Boolean) {
+        getSharedPrefs(context, AGENT_PREFS)
+            .edit()
+            .putBoolean(COMPLETION_SCREEN_ENABLED_KEY, enabled)
             .apply()
     }
 

@@ -70,6 +70,10 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long = 300) {
             instance?.gestureHandler?.swipe(startX, startY, endX, endY, duration)
         }
+        
+        fun testCompletionScreen() {
+            instance?.floatingButtonManager?.testShowCompletionScreen()
+        }
     }
 
     override fun onCreate() {
