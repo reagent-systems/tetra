@@ -2,6 +2,7 @@ package com.example.simple_agent_android.agentcore
 
 import android.util.Log
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 data class UIElement(
@@ -62,41 +63,68 @@ enum class LoadingState {
     ERROR
 }
 
+class ScreenParseException(message: String, cause: Throwable?) : Exception(message, cause)
+
 object ScreenAnalyzer {
     private const val TAG = "ScreenAnalyzer"
+    private const val MAX_PARSE_ATTEMPTS = 3
+    private const val INITIAL_BACKOFF_MS = 200L
     
     fun analyzeScreen(screenJson: String): ScreenAnalysis {
-        try {
-            val elements = parseElements(screenJson)
-            val interactableElements = elements.filter { it.isClickable && it.isEnabled }
-            val packageName = extractPackageName(screenJson)
-            
-            return ScreenAnalysis(
-                allElements = elements,
-                interactableElements = interactableElements,
-                textInputs = elements.filter { it.isTextInput },
-                buttons = elements.filter { it.isButton },
-                scrollableAreas = elements.filter { it.isScrollable },
-                mainContent = categorizeAsMainContent(elements),
-                navigation = categorizeAsNavigation(elements),
-                screenType = determineScreenType(elements),
-                loadingState = determineLoadingState(elements),
-                packageName = packageName
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error analyzing screen", e)
-            return ScreenAnalysis(
-                allElements = emptyList(),
-                interactableElements = emptyList(),
-                textInputs = emptyList(),
-                buttons = emptyList(),
-                scrollableAreas = emptyList(),
-                mainContent = emptyList(),
-                navigation = emptyList(),
-                screenType = ScreenType.ERROR,
-                loadingState = LoadingState.ERROR
-            )
+        return analyzeScreenWithRetry(screenJson)
+    }
+    
+    private fun analyzeScreenWithRetry(screenJson: String): ScreenAnalysis {
+        var backoffMs = INITIAL_BACKOFF_MS
+        var lastException: Exception? = null
+        
+        for (attempt in 1..MAX_PARSE_ATTEMPTS) {
+            try {
+                return performScreenParsing(screenJson)
+            } catch (e: JSONException) {
+                lastException = e
+                Log.w(TAG, "Screen parsing attempt $attempt failed: ${e.message}")
+                
+                if (attempt < MAX_PARSE_ATTEMPTS) {
+                    Log.i(TAG, "Retrying screen parsing in ${backoffMs}ms (attempt ${attempt + 1}/$MAX_PARSE_ATTEMPTS)")
+                    try {
+                        Thread.sleep(backoffMs)
+                    } catch (interrupted: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
+                    }
+                    backoffMs *= 2 // Exponential backoff
+                }
+            } catch (e: Exception) {
+                // For non-JSON exceptions, don't retry as they're likely not transient
+                Log.e(TAG, "Non-recoverable error analyzing screen", e)
+                lastException = e
+                break
+            }
         }
+        
+        // If all retries failed, throw the custom exception
+        Log.e(TAG, "Failed to parse screen after $MAX_PARSE_ATTEMPTS attempts")
+        throw ScreenParseException("Failed to parse screen after $MAX_PARSE_ATTEMPTS attempts", lastException)
+    }
+    
+    private fun performScreenParsing(screenJson: String): ScreenAnalysis {
+        val elements = parseElements(screenJson)
+        val interactableElements = elements.filter { it.isClickable && it.isEnabled }
+        val packageName = extractPackageName(screenJson)
+        
+        return ScreenAnalysis(
+            allElements = elements,
+            interactableElements = interactableElements,
+            textInputs = elements.filter { it.isTextInput },
+            buttons = elements.filter { it.isButton },
+            scrollableAreas = elements.filter { it.isScrollable },
+            mainContent = categorizeAsMainContent(elements),
+            navigation = categorizeAsNavigation(elements),
+            screenType = determineScreenType(elements),
+            loadingState = determineLoadingState(elements),
+            packageName = packageName
+        )
     }
     
     private fun extractPackageName(screenJson: String): String? {
@@ -129,13 +157,20 @@ object ScreenAnalyzer {
     }
     
     private fun parseElement(element: JSONObject): UIElement {
-        val bounds = element.getJSONObject("bounds")
-        val uiBounds = UIElement.Bounds(
-            left = bounds.getInt("left"),
-            top = bounds.getInt("top"),
-            right = bounds.getInt("right"),
-            bottom = bounds.getInt("bottom")
-        )
+        // Handle missing or malformed bounds gracefully
+        val boundsJson = element.optJSONObject("bounds")
+        val uiBounds = if (boundsJson != null) {
+            UIElement.Bounds(
+                left = boundsJson.optInt("left", 0),
+                top = boundsJson.optInt("top", 0),
+                right = boundsJson.optInt("right", 0),
+                bottom = boundsJson.optInt("bottom", 0)
+            )
+        } else {
+            // If bounds is completely missing, create a default bounds
+            Log.w(TAG, "Element missing bounds, using default: ${element.optString("className", "unknown")}")
+            UIElement.Bounds(left = 0, top = 0, right = 0, bottom = 0)
+        }
         
         val text = element.optString("text").takeIf { it.isNotEmpty() }
         val contentDescription = element.optString("contentDescription").takeIf { it.isNotEmpty() }

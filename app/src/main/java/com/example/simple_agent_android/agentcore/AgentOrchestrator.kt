@@ -6,6 +6,10 @@ import android.os.Looper
 import android.util.Log
 import com.example.simple_agent_android.agentcore.AgentActions
 import com.example.simple_agent_android.agentcore.ScreenAnalyzer
+import com.example.simple_agent_android.agentcore.ScreenAnalysis
+import com.example.simple_agent_android.agentcore.ScreenParseException
+import com.example.simple_agent_android.agentcore.ScreenType
+import com.example.simple_agent_android.agentcore.LoadingState
 import com.example.simple_agent_android.agentcore.TaskContextManager
 import com.example.simple_agent_android.agentcore.metacognition.MetaCognition
 import com.example.simple_agent_android.agentcore.metacognition.LoopDetector
@@ -103,7 +107,33 @@ ${Prompts.getDateReminder()}""")
                         emptyTries++
                     }
                     
-                    val currentScreenAnalysis = ScreenAnalyzer.analyzeScreen(screenJson)
+                    val currentScreenAnalysis = try {
+                        ScreenAnalyzer.analyzeScreen(screenJson)
+                    } catch (e: ScreenParseException) {
+                        LogManager.log(TAG, "Screen parsing failed after retries: ${e.message}", LogLevel.ERROR)
+                        onOutput?.invoke("Screen parsing failed - using fallback analysis")
+                        
+                        // Track screen parsing failure
+                        AgentErrorTracker.trackScreenAnalysisError(
+                            error = e,
+                            screenData = screenJson.take(500),
+                            analysisStep = "step_$step"
+                        )
+                        
+                        // Return a minimal fallback analysis
+                        ScreenAnalysis(
+                            allElements = emptyList(),
+                            interactableElements = emptyList(),
+                            textInputs = emptyList(),
+                            buttons = emptyList(),
+                            scrollableAreas = emptyList(),
+                            mainContent = emptyList(),
+                            navigation = emptyList(),
+                            screenType = ScreenType.ERROR,
+                            loadingState = LoadingState.ERROR,
+                            packageName = null
+                        )
+                    }
                     
                     // Smart loop detection using both old and new methods
                     val loopAnalysis = LoopDetector.analyzeHistory(messages)
