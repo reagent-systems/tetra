@@ -39,25 +39,7 @@ git clone https://github.com/reagent-systems/Simple-Agent-Android.git
 cd SimpleAgentAndroid2
 ```
 
-### 2. Configure API Keys
-
-#### Sentry Configuration (Optional)
-1. Update `app/src/main/AndroidManifest.xml`:
-```xml
-<meta-data 
-    android:name="io.sentry.dsn" 
-    android:value="your-sentry-dsn-here" />
-```
-
-2. Configure `sentry.properties` in project root:
-```properties
-defaults.url=https://sentry.io/
-defaults.org=your-org
-defaults.project=your-project
-auth.token=your-auth-token
-```
-
-### 3. Build and Install
+### 2. Build and Install
 ```bash
 ./gradlew assembleDebug
 adb install app/build/outputs/apk/debug/app-debug.apk
