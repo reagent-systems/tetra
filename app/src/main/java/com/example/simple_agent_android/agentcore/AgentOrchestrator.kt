@@ -70,7 +70,7 @@ ${Prompts.getDateReminder()}""")
                 var previousScreenAnalysis: ScreenAnalysis? = null
                 var lastAction: String? = null
                 // Start with initial message history
-                val baseMessages = mutableListOf(systemPrompt, userInstruction)
+                val baseMessages = mutableListOf<Map<String, Any>>(systemPrompt, userInstruction)
                 if (assistantPlan != null) baseMessages.add(assistantPlan)
                 var messages = baseMessages.toMutableList()
                 
@@ -178,7 +178,7 @@ ${Prompts.loopBreakingDecisionFormat}"""))
                     }
 
                     // Remove any previous screen JSON user message
-                    messages = messages.filterNot { it["role"] == "user" && it["content"]?.startsWith("Current screen JSON:") == true }.toMutableList()
+                    messages = messages.filterNot { it["role"] == "user" && (it["content"] as? String)?.startsWith("Current screen JSON:") == true }.toMutableList()
                     // Remove any trailing tool messages before LLM call
                     while (messages.isNotEmpty() && messages.last()["role"] == "tool") {
                         messages.removeAt(messages.size - 1)
@@ -203,7 +203,7 @@ Raw screen JSON: $screenJson"""
                     messages.add(mapOf("role" to "user", "content" to enhancedScreenInfo))
                     
                     // Add tool call guidance
-                    if (messages.none { it["role"] == "system" && it["content"]?.contains("Always respond with a tool call") == true }) {
+                    if (messages.none { it["role"] == "system" && (it["content"] as? String)?.contains("Always respond with a tool call") == true }) {
                         messages.add(0, mapOf("role" to "system", "content" to Prompts.toolCallGuidance))
                     }
 
@@ -248,6 +248,25 @@ Raw screen JSON: $screenJson"""
                         val toolCalls = message.optJSONArray("tool_calls")
                         val content = message.optString("content")
                         if (toolCalls != null && toolCalls.length() > 0) {
+                            val toolCallsList = mutableListOf<Map<String, Any>>()
+                            for (i in 0 until toolCalls.length()) {
+                                val toolCall = toolCalls.getJSONObject(i)
+                                toolCallsList.add(mapOf(
+                                    "id" to toolCall.getString("id"),
+                                    "type" to toolCall.getString("type"),
+                                    "function" to mapOf(
+                                        "name" to toolCall.getJSONObject("function").getString("name"),
+                                        "arguments" to toolCall.getJSONObject("function").getString("arguments")
+                                    )
+                                ))
+                            }
+                            
+                            messages.add(mapOf(
+                                "role" to "assistant",
+                                "content" to content,
+                                "tool_calls" to toolCallsList
+                            ))
+                            
                             // For each tool call, perform the action and add a tool message
                             for (i in 0 until toolCalls.length()) {
                                 val toolCall = toolCalls.getJSONObject(i)

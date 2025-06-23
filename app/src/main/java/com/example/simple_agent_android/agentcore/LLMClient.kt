@@ -122,7 +122,7 @@ class LLMClient(private val apiKey: String) {
         )
     ))
 
-    fun sendWithTools(messages: List<Map<String, String>>): JSONObject? {
+    fun sendWithTools(messages: List<Map<String, Any>>): JSONObject? {
         return sentryApiCall(
             endpoint = apiUrl,
             operation = "chat_completion_with_tools"
@@ -168,6 +168,29 @@ class LLMClient(private val apiKey: String) {
                             endpoint = apiUrl,
                             retryAfter = response.header("Retry-After")
                         )
+                        400 -> {
+                            // Check for message sequencing errors first
+                            if (responseBody?.contains("tool' role message must follow") == true ||
+                                responseBody?.contains("tool_calls") == true) {
+                                ApiErrorTracker.trackMessageSequencingError(
+                                    endpoint = apiUrl,
+                                    errorMessage = responseBody,
+                                    messageHistory = messages.map { it.mapValues { entry -> entry.value.toString() } }
+                                )
+                            } else {
+                                // Handle other 400 errors
+                                ApiErrorTracker.trackStructuredApiError(
+                                    endpoint = apiUrl,
+                                    responseCode = response.code,
+                                    responseBody = responseBody ?: "Unknown error",
+                                    requestContext = mapOf(
+                                        "model" to model,
+                                        "message_count" to messages.size,
+                                        "has_tools" to true
+                                    )
+                                )
+                            }
+                        }
                         402, 403 -> {
                             // Parse structured error if possible
                             try {

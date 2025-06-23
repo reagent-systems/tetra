@@ -9,7 +9,7 @@ object MetaCognition {
 
     fun planTask(instruction: String, apiKey: String): String? {
         val llm = LLMClient(apiKey)
-        val messages = listOf(
+        val messages = listOf<Map<String, Any>>(
             mapOf("role" to "system", "content" to Prompts.systemPrompt),
             mapOf("role" to "user", "content" to """${Prompts.planningPrompt}
 
@@ -32,7 +32,7 @@ Please analyze this task and respond in JSON format:
         return message.optString("content")
     }
 
-    fun reflectOnStep(history: List<Map<String, String>>, apiKey: String): String? {
+    fun reflectOnStep(history: List<Map<String, Any>>, apiKey: String): String? {
         // Only pass history up to the last non-tool message
         val trimmedHistory = history.toMutableList()
         while (trimmedHistory.isNotEmpty() && trimmedHistory.last()["role"] == "tool") {
@@ -60,7 +60,7 @@ Please reflect on the current state and respond in JSON format:
         return message.optString("content")
     }
 
-    fun shouldStop(history: List<Map<String, String>>, apiKey: String): Boolean {
+    fun shouldStop(history: List<Map<String, Any>>, apiKey: String): Boolean {
         val llm = LLMClient(apiKey)
         val messages = history.toMutableList()
         messages.add(mapOf("role" to "user", "content" to """${Prompts.stoppingPrompt}

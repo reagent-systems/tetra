@@ -16,7 +16,7 @@ object LoopDetector {
         val steps: List<Int>
     )
 
-    fun analyzeHistory(history: List<Map<String, String>>): LoopAnalysis {
+    fun analyzeHistory(history: List<Map<String, Any>>): LoopAnalysis {
         val toolCalls = history.filter { it["role"] == "tool" }
         
         // Check for exact action repetition
@@ -40,11 +40,11 @@ object LoopDetector {
         return LoopAnalysis(false, "none", 0, 0, emptyList())
     }
 
-    private fun detectExactRepetition(toolCalls: List<Map<String, String>>): LoopAnalysis {
+    private fun detectExactRepetition(toolCalls: List<Map<String, Any>>): LoopAnalysis {
         if (toolCalls.size < MAX_SIMILAR_ACTIONS) return LoopAnalysis(false, "none", 0, 0, emptyList())
 
         val lastActions = toolCalls.takeLast(MAX_SIMILAR_ACTIONS)
-        val allSame = lastActions.all { it["content"] == lastActions[0]["content"] }
+        val allSame = lastActions.all { it["content"] as? String == lastActions[0]["content"] as? String }
         
         if (allSame) {
             return LoopAnalysis(
@@ -59,22 +59,23 @@ object LoopDetector {
         return LoopAnalysis(false, "none", 0, 0, emptyList())
     }
 
-    private fun detectSemanticRepetition(toolCalls: List<Map<String, String>>): LoopAnalysis {
+    private fun detectSemanticRepetition(toolCalls: List<Map<String, Any>>): LoopAnalysis {
         if (toolCalls.size < MAX_SIMILAR_ACTIONS) return LoopAnalysis(false, "none", 0, 0, emptyList())
 
         val lastActions = toolCalls.takeLast(MAX_SIMILAR_ACTIONS)
         
         // Check if all actions are of the same type (e.g., all presses or all text inputs)
         val actionTypes = lastActions.map { content ->
+            val contentStr = content["content"] as? String
             when {
-                content["content"]?.contains("press", ignoreCase = true) == true -> {
-                    if (content["content"]?.contains("EditText", ignoreCase = true) == true) "press_text_field"
+                contentStr?.contains("press", ignoreCase = true) == true -> {
+                    if (contentStr.contains("EditText", ignoreCase = true)) "press_text_field"
                     else "press"
                 }
-                content["content"]?.contains("text", ignoreCase = true) == true -> "text"
-                content["content"]?.contains("swipe", ignoreCase = true) == true -> "swipe"
-                content["content"]?.contains("home", ignoreCase = true) == true -> "home"
-                content["content"]?.contains("back", ignoreCase = true) == true -> "back"
+                contentStr?.contains("text", ignoreCase = true) == true -> "text"
+                contentStr?.contains("swipe", ignoreCase = true) == true -> "swipe"
+                contentStr?.contains("home", ignoreCase = true) == true -> "home"
+                contentStr?.contains("back", ignoreCase = true) == true -> "back"
                 else -> "unknown"
             }
         }
@@ -103,14 +104,14 @@ object LoopDetector {
         return LoopAnalysis(false, "none", 0, 0, emptyList())
     }
 
-    private fun detectNoProgress(history: List<Map<String, String>>): LoopAnalysis {
+    private fun detectNoProgress(history: List<Map<String, Any>>): LoopAnalysis {
         if (history.size < MAX_NO_PROGRESS_STEPS) return LoopAnalysis(false, "none", 0, 0, emptyList())
 
         // Get the last few screen states
         val screenStates = history
-            .filter { it["role"] == "user" && it["content"]?.startsWith("Current screen JSON:") == true }
+            .filter { it["role"] == "user" && (it["content"] as? String)?.startsWith("Current screen JSON:") == true }
             .takeLast(MAX_NO_PROGRESS_STEPS)
-            .mapNotNull { it["content"]?.removePrefix("Current screen JSON: ") }
+            .mapNotNull { (it["content"] as? String)?.removePrefix("Current screen JSON: ") }
 
         if (screenStates.size < MAX_NO_PROGRESS_STEPS) return LoopAnalysis(false, "none", 0, 0, emptyList())
 

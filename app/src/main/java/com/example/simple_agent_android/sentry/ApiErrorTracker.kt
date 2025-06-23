@@ -208,22 +208,22 @@ object ApiErrorTracker {
                 "insufficient_quota" -> trackQuotaError(endpoint, errorMessage, "insufficient_quota")
                 "invalid_api_key" -> trackAuthError(endpoint, errorMessage, responseCode)
                 "rate_limit_exceeded" -> trackRateLimit(endpoint)
-                else -> {
-                    SentryManager.captureMessage(
-                        message = "Structured API error: $errorMessage",
-                        level = SentryLevel.ERROR,
-                        tags = mapOf(
-                            "api_error_type" to errorType,
-                            "api_error_code" to errorCode,
-                            "endpoint" to endpoint,
-                            "response_code" to responseCode.toString()
-                        ),
-                        extras = requestContext + mapOf(
-                            "error_message" to errorMessage,
-                            "full_response" to responseBody.take(1000)
-                        )
-                    )
-                }
+                                        else -> {
+                            SentryManager.captureMessage(
+                                message = "Structured API error: $errorMessage",
+                                level = SentryLevel.ERROR,
+                                tags = mapOf(
+                                    "api_error_type" to errorType,
+                                    "api_error_code" to errorCode,
+                                    "endpoint" to endpoint,
+                                    "response_code" to responseCode.toString()
+                                ),
+                                extras = requestContext + mapOf(
+                                    "error_message" to errorMessage,
+                                    "full_response" to responseBody.take(1000)
+                                )
+                            )
+                        }
             }
         } catch (e: Exception) {
             // If we can't parse the error response, track it as a generic error
@@ -239,6 +239,31 @@ object ApiErrorTracker {
                 )
             )
         }
+    }
+    
+    /**
+     * Track message sequencing errors (tool messages without preceding tool_calls)
+     */
+    fun trackMessageSequencingError(
+        endpoint: String,
+        errorMessage: String,
+        messageHistory: List<Map<String, Any>> = emptyList()
+    ) {
+        SentryManager.captureMessage(
+            message = "OpenAI API message sequencing error: $errorMessage",
+            level = SentryLevel.ERROR,
+            tags = mapOf(
+                "api_issue" to "message_sequencing",
+                "endpoint" to endpoint,
+                "error_type" to "tool_message_ordering"
+            ),
+            extras = mapOf(
+                "error_message" to errorMessage,
+                "message_count" to messageHistory.size,
+                "last_messages" to messageHistory.takeLast(5).toString(),
+                "fix_applied" to "assistant_response_added_before_tool_calls"
+            )
+        )
     }
     
     /**
