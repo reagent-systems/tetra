@@ -1,4 +1,4 @@
-# Simple Agent Android
+# Tetra (Simple Agent Android)
 
 An AI-powered Android automation agent that can understand screen content and perform actions autonomously using OpenAI's GPT models and Android's Accessibility Services.
 
