@@ -15,41 +15,69 @@ class BoundingBoxOverlayView(context: Context) : View(context) {
         style = Paint.Style.STROKE
         strokeWidth = 4f
     }
+    
+    private val centerPaint = Paint().apply {
+        color = Color.GREEN
+        style = Paint.Style.FILL
+    }
+    
     private var boundingBoxes: List<Rect> = emptyList()
+    private var interactiveBoxes: List<Rect> = emptyList()
     private val offset = 2 // px offset for better alignment
     private val maxDrawBoxes = 100
     var showBoundingBoxes: Boolean = true
 
     fun updateBoundingBoxes(root: AccessibilityNodeInfo?) {
-        val boxes = mutableListOf<Rect>()
-        collectBoundingBoxes(root, boxes)
-        boundingBoxes = boxes
+        val allBoxes = mutableListOf<Rect>()
+        val interactiveBoxes = mutableListOf<Rect>()
+        collectBoundingBoxes(root, allBoxes, interactiveBoxes)
+        boundingBoxes = allBoxes
+        this.interactiveBoxes = interactiveBoxes
         postInvalidate()
     }
 
-    private fun collectBoundingBoxes(node: AccessibilityNodeInfo?, boxes: MutableList<Rect>) {
+    private fun collectBoundingBoxes(node: AccessibilityNodeInfo?, allBoxes: MutableList<Rect>, interactiveBoxes: MutableList<Rect>) {
         if (node == null) return
+        if (node.packageName == "com.example.simple_agent_android") return
         val rect = Rect()
         node.getBoundsInScreen(rect)
         if (!rect.isEmpty) {
-            // Apply offset
-            rect.left += offset
-            rect.top += offset + SharedPrefsUtils.getVerticalOffset(context)
-            rect.right -= offset
-            rect.bottom -= offset - SharedPrefsUtils.getVerticalOffset(context)
-            boxes.add(rect)
+            // Apply offset - same as InteractiveElementUtils
+            val adjustedRect = Rect(rect)
+            adjustedRect.left += offset
+            adjustedRect.top += offset + SharedPrefsUtils.getVerticalOffset(context)
+            adjustedRect.right -= offset
+            adjustedRect.bottom -= offset - SharedPrefsUtils.getVerticalOffset(context)
+            
+            // Add to all boxes
+            allBoxes.add(adjustedRect)
+            
+            // Add to interactive boxes only if it's interactive
+            if (node.isClickable || node.isFocusable || node.isLongClickable) {
+                interactiveBoxes.add(adjustedRect)
+            }
         }
         for (i in 0 until node.childCount) {
-            collectBoundingBoxes(node.getChild(i), boxes)
+            collectBoundingBoxes(node.getChild(i), allBoxes, interactiveBoxes)
         }
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!showBoundingBoxes) return
+        
+        // Draw all bounding boxes in red
         for (i in 0 until minOf(boundingBoxes.size, maxDrawBoxes)) {
             val rect = boundingBoxes[i]
             canvas.drawRect(rect, paint)
+        }
+        
+        // Draw green center points only for interactive elements
+        for (i in 0 until minOf(interactiveBoxes.size, maxDrawBoxes)) {
+            val rect = interactiveBoxes[i]
+            val centerX = rect.left + rect.width() / 2
+            val centerY = rect.top + rect.height() / 2
+            canvas.drawCircle(centerX.toFloat(), centerY.toFloat(), 8f, centerPaint)
         }
     }
 } 

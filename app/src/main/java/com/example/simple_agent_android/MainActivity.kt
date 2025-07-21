@@ -192,6 +192,8 @@ class MainActivity : ComponentActivity() {
                             onToggleOverlay = { viewModel.toggleOverlay(this@MainActivity) },
                             verticalOffset = viewModel.verticalOffset.value,
                             onVerticalOffsetChange = { viewModel.updateVerticalOffset(this@MainActivity, it) },
+                            debugCursorEnabled = viewModel.debugCursorEnabled.value,
+                            onToggleDebugCursor = { viewModel.toggleDebugCursor(this@MainActivity) },
                             onExportJson = viewModel::exportJson,
                             jsonOutput = if (viewModel.showJsonDialog.value) viewModel.jsonOutput.value else null,
                             onCloseJson = viewModel::closeJsonDialog

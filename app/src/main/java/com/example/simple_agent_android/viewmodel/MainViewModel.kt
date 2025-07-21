@@ -67,6 +67,10 @@ class MainViewModel : ViewModel() {
     private val _verticalOffset = mutableStateOf(0)
     val verticalOffset: State<Int> = _verticalOffset
     
+    // Debug cursor state
+    private val _debugCursorEnabled = mutableStateOf(false)
+    val debugCursorEnabled: State<Boolean> = _debugCursorEnabled
+
     // Dialog State
     private val _showJsonDialog = mutableStateOf(false)
     val showJsonDialog: State<Boolean> = _showJsonDialog
@@ -132,6 +136,7 @@ class MainViewModel : ViewModel() {
         _verticalOffset.value = SharedPrefsUtils.getVerticalOffset(context)
         _completionScreenEnabled.value = SharedPrefsUtils.isCompletionScreenEnabled(context)
         _overlayActive.value = BoundingBoxAccessibilityService.isOverlayActive()
+        _debugCursorEnabled.value = BoundingBoxAccessibilityService.isDebugCursorActive()
         
         // Initialize AgentStateManager
         AgentStateManager.initialize(context)
@@ -271,6 +276,20 @@ class MainViewModel : ViewModel() {
         SharedPrefsUtils.setVerticalOffset(context, offset)
     }
     
+    fun toggleDebugCursor(context: Context) {
+        if (!OverlayPermissionUtils.hasOverlayPermission(context)) {
+            OverlayPermissionUtils.requestOverlayPermission(context)
+            return
+        }
+        
+        _debugCursorEnabled.value = !_debugCursorEnabled.value
+        if (_debugCursorEnabled.value) {
+            BoundingBoxAccessibilityService.showDebugCursor()
+        } else {
+            BoundingBoxAccessibilityService.hideDebugCursor()
+        }
+    }
+
     // Dialog Actions
     fun exportJson() {
         _jsonOutput.value = BoundingBoxAccessibilityService.getInteractiveElementsJson()

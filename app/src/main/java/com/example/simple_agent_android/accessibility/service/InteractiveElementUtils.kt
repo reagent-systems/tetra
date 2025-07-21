@@ -5,11 +5,15 @@ import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
 import org.json.JSONObject
+import com.example.simple_agent_android.utils.SharedPrefsUtils
 
 object InteractiveElementUtils {
     fun getInteractiveElementsJson(service: BoundingBoxAccessibilityService?): String {
         val root = service?.rootInActiveWindow ?: return "{}"
         val elements = mutableListOf<JSONObject>()
+        val context = service.applicationContext
+        val verticalOffset = SharedPrefsUtils.getVerticalOffset(context)
+        
         fun getFirstNonEmptyTextOrDesc(node: AccessibilityNodeInfo?): Pair<String, String> {
             if (node == null) return "" to ""
             val text = node.text?.toString() ?: ""
@@ -57,12 +61,24 @@ object InteractiveElementUtils {
                 if (resourceId.isNotEmpty()) obj.put("resourceId", resourceId)
                 val packageName = node.packageName?.toString() ?: ""
                 if (packageName.isNotEmpty()) obj.put("packageName", packageName)
-                obj.put("x", rect.left)
-                obj.put("y", rect.top)
-                obj.put("width", rect.width())
-                obj.put("height", rect.height())
-                obj.put("center_x", rect.left + rect.width() / 2)
-                obj.put("center_y", rect.top + rect.height() / 2)
+                
+                // Apply the same offset that the visual boxes use
+                val adjustedRect = Rect(rect)
+                adjustedRect.top += verticalOffset
+                adjustedRect.bottom += verticalOffset
+                
+                obj.put("x", adjustedRect.left)
+                obj.put("y", adjustedRect.top)
+                obj.put("width", adjustedRect.width())
+                obj.put("height", adjustedRect.height())
+                
+                // Calculate center of the offset-adjusted box - this is the exact center the LLM should press
+                val centerX = adjustedRect.left + adjustedRect.width() / 2
+                val centerY = adjustedRect.top + adjustedRect.height() / 2
+                
+                obj.put("center_x", centerX)
+                obj.put("center_y", centerY)
+                
                 val childrenTexts = getAllDescendantTexts(node)
                 if (childrenTexts.isNotEmpty()) obj.put("childrenText", JSONArray(childrenTexts))
                 elements.add(obj)

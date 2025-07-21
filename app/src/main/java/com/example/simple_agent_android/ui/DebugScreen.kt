@@ -44,6 +44,8 @@ fun DebugScreen(
     onToggleOverlay: () -> Unit,
     verticalOffset: Int,
     onVerticalOffsetChange: (Int) -> Unit,
+    debugCursorEnabled: Boolean,
+    onToggleDebugCursor: () -> Unit,
     onExportJson: () -> Unit,
     jsonOutput: String?,
     onCloseJson: () -> Unit
@@ -147,6 +149,24 @@ fun DebugScreen(
                 ) {
                     Text(
                         text = if (overlayActive) "Hide Overlay" else "Show Overlay",
+                        color = ReagentWhite,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Debug Cursor Toggle
+                Button(
+                    onClick = onToggleDebugCursor,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (debugCursorEnabled) ReagentStatusOnline else ReagentGray
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (debugCursorEnabled) "Hide Debug Cursor" else "Show Debug Cursor",
                         color = ReagentWhite,
                         fontWeight = FontWeight.Medium
                     )

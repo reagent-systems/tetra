@@ -15,6 +15,22 @@ object AgentActions {
     fun setTextAt(x: Int, y: Int, text: String) {
         BoundingBoxAccessibilityService.setTextAt(x, y, text)
     }
+    
+    fun focusAndSetText(x: Int, y: Int, text: String): Boolean {
+        return try {
+            // First press to focus
+            BoundingBoxAccessibilityService.simulatePressAt(x, y)
+            Thread.sleep(500) // Wait for focus
+            
+            // Then set text
+            BoundingBoxAccessibilityService.setTextAt(x, y, text)
+            Thread.sleep(300) // Wait for text to be set
+            
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     fun goHome() {
         BoundingBoxAccessibilityService.goHome()
@@ -52,7 +68,9 @@ object AgentActions {
                         return true
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                // Continue trying
+            }
             Thread.sleep(pollIntervalMs)
         }
         return false

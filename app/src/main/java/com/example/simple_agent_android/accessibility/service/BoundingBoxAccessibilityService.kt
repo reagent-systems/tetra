@@ -9,9 +9,11 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.example.simple_agent_android.accessibility.floating.FloatingButtonManager
 import com.example.simple_agent_android.accessibility.overlay.OverlayManager
+import com.example.simple_agent_android.accessibility.overlay.DebugCursorView
 import com.example.simple_agent_android.accessibility.service.InteractiveElementUtils
 import com.example.simple_agent_android.sentry.AgentErrorTracker
 import com.example.simple_agent_android.sentry.trackFeatureUsage
+import com.example.simple_agent_android.utils.SharedPrefsUtils
 
 class BoundingBoxAccessibilityService : AccessibilityService() {
     private val TAG = "BoundingBoxService"
@@ -47,8 +49,26 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
 
         fun simulatePressAt(x: Int, y: Int) {
             try {
-                instance?.gestureHandler?.simulatePress(x, y)
-                trackFeatureUsage("accessibility_gesture", "press", true, mapOf("x" to x, "y" to y))
+                // Get the vertical offset and reverse it for actual touch coordinates
+                val context = instance?.applicationContext
+                val verticalOffset = if (context != null) {
+                    SharedPrefsUtils.getVerticalOffset(context)
+                } else {
+                    0 // Fallback if context is null
+                }
+                val actualX = x
+                val actualY = y - verticalOffset // Reverse the offset applied in InteractiveElementUtils
+                
+                Log.d("BoundingBoxAccessibilityService", "simulatePressAt: LLM coordinates ($x, $y) -> actual touch coordinates ($actualX, $actualY), offset: $verticalOffset")
+                
+                instance?.gestureHandler?.simulatePress(actualX, actualY)
+                
+                // Show debug cursor if enabled - use original coordinates for visual alignment
+                if (DebugCursorView.isActive()) {
+                    DebugCursorView.showPress(x, y)
+                }
+                
+                trackFeatureUsage("accessibility_gesture", "press", true, mapOf("x" to actualX, "y" to actualY))
             } catch (e: Exception) {
                 AgentErrorTracker.trackAccessibilityError(
                     error = e,
@@ -90,11 +110,43 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
         }
 
         fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long = 300) {
-            instance?.gestureHandler?.swipe(startX, startY, endX, endY, duration)
+            // Get the vertical offset and reverse it for actual touch coordinates
+            val context = instance?.applicationContext
+            val verticalOffset = if (context != null) {
+                SharedPrefsUtils.getVerticalOffset(context)
+            } else {
+                0 // Fallback if context is null
+            }
+            val actualStartX = startX
+            val actualStartY = startY - verticalOffset // Reverse the offset
+            val actualEndX = endX
+            val actualEndY = endY - verticalOffset // Reverse the offset
+            
+            instance?.gestureHandler?.swipe(actualStartX, actualStartY, actualEndX, actualEndY, duration)
+            
+            // Show debug cursor for swipe if enabled - use original coordinates for visual alignment
+            if (DebugCursorView.isActive()) {
+                DebugCursorView.showSwipe(startX, startY, endX, endY)
+            }
         }
         
         fun testCompletionScreen() {
             instance?.floatingButtonManager?.testShowCompletionScreen()
+        }
+        
+        // Debug cursor functions
+        fun showDebugCursor() {
+            instance?.let { service ->
+                DebugCursorView.show(service.applicationContext)
+            }
+        }
+        
+        fun hideDebugCursor() {
+            DebugCursorView.hide()
+        }
+        
+        fun isDebugCursorActive(): Boolean {
+            return DebugCursorView.isActive()
         }
     }
 
@@ -109,6 +161,9 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
             floatingButtonManager = FloatingButtonManager(this)
             gestureHandler = AccessibilityGestureHandler(this)
             nodeHandler = AccessibilityNodeHandler(this)
+            
+            // Initialize debug cursor
+            DebugCursorView.initialize(this)
             
             trackFeatureUsage("accessibility_service", "created", true)
         } catch (e: Exception) {
@@ -155,7 +210,27 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.source != null) {
+        event?.let { accessibilityEvent ->
+            // Log accessibility events for debugging text input issues
+            when (accessibilityEvent.eventType) {
+                AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                    Log.d("AccessibilityEvent", "VIEW_CLICKED: ${accessibilityEvent.className} - ${accessibilityEvent.text}")
+                }
+                AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                    Log.d("AccessibilityEvent", "VIEW_FOCUSED: ${accessibilityEvent.className} - ${accessibilityEvent.text}")
+                }
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                    Log.d("AccessibilityEvent", "VIEW_TEXT_CHANGED: ${accessibilityEvent.className} - before: '${accessibilityEvent.beforeText}' after: '${accessibilityEvent.text}'")
+                }
+                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED -> {
+                    Log.d("AccessibilityEvent", "VIEW_TEXT_SELECTION_CHANGED: ${accessibilityEvent.className} - ${accessibilityEvent.text}")
+                }
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                    Log.d("AccessibilityEvent", "WINDOW_STATE_CHANGED: ${accessibilityEvent.className} - ${accessibilityEvent.text}")
+                }
+            }
+            
+            // Update overlay if needed
             overlayManager.updateOverlay(rootInActiveWindow)
         }
     }
@@ -171,5 +246,6 @@ class BoundingBoxAccessibilityService : AccessibilityService() {
     private fun cleanup() {
         overlayManager.cleanup()
         floatingButtonManager.cleanup()
+        DebugCursorView.hide()
     }
 } 
