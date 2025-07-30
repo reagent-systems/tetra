@@ -34,7 +34,7 @@ jobs:
         run: |
           gcloud firebase test android run \
             --type instrumentation \
-            --app Tetra-App-Dev/app-debug.apk \
+            --app ./tetra/Tetra-App-Dev/app-debug.apk \
             --test Tetra-App-Dev/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
             --project=${{ secrets.GCLOUD_PROJECT }}
