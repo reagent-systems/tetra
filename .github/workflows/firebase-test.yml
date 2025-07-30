@@ -1,4 +1,4 @@
-name: Firebase Test
+name: Build and Deploy to Firebase App Distribution
 
 on:
   push:
@@ -8,45 +8,55 @@ on:
   workflow_dispatch:
 
 jobs:
-  firebase-test:
-    name: Upload to Firebase Test Lab
+  build-and-deploy:
+    name: Build APK and Deploy to Firebase App Distribution
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '11'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Authenticate with Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v1
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
         with:
-          credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Upload APK to GCS bucket
-        id: upload-apk
-        run: |
-          export GOOGLE_APPLICATION_CREDENTIALS="${{ steps.auth.outputs.credentials_file_path }}"
-          gsutil cp ./Tetra-App-Dev/app-debug.apk gs://tetra-testlab-uploads/app-debug.apk
-        env:
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
+      - name: Make gradlew executable
+        run: chmod +x ./Tetra/gradlew
 
-      - name: Run Firebase Test Lab using GCS path
+      - name: Build Debug APK
         run: |
-          export GOOGLE_APPLICATION_CREDENTIALS="${{ steps.auth.outputs.credentials_file_path }}"
-          gcloud firebase test android run \
-            --type instrumentation \
-            --app gs://tetra-testlab-uploads/app-debug.apk \
-            --test gs://tetra-testlab-uploads/app-debug.apk \
-            --device model=redfin,version=30,locale=en,orientation=portrait \
-            --project=${{ secrets.GCLOUD_PROJECT }}
-        env:
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
+          cd Tetra
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          groups: testers
+          file: Tetra/app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: |
+            Build from commit ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+            
+            Changes in this build:
+            ${{ github.event.head_commit.message }}
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug-apk
+          path: Tetra/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
