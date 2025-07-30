@@ -22,23 +22,16 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x ./Tetra/gradlew
-
-      - name: Build Debug APK
+      - name: Verify APK exists
         run: |
-          cd Tetra
-          ./gradlew assembleDebug --stacktrace
+          if [ -f "./Tetra-App-Dev/app-debug.apk" ]; then
+            echo "APK found: $(ls -la ./Tetra-App-Dev/app-debug.apk)"
+          else
+            echo "ERROR: APK not found at ./Tetra-App-Dev/app-debug.apk"
+            echo "Available files in Tetra-App-Dev:"
+            ls -la ./Tetra-App-Dev/ || echo "Tetra-App-Dev directory not found"
+            exit 1
+          fi
 
       - name: Upload APK to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
@@ -46,17 +39,17 @@ jobs:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           groups: testers
-          file: Tetra/app/build/outputs/apk/debug/app-debug.apk
+          file: ./Tetra-App-Dev/app-debug.apk
           releaseNotes: |
-            Build from commit ${{ github.sha }}
+            Pre-built APK upload
+            Commit: ${{ github.sha }}
             Branch: ${{ github.ref_name }}
             
-            Changes in this build:
-            ${{ github.event.head_commit.message }}
+            Changes: ${{ github.event.head_commit.message }}
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: Tetra/app/build/outputs/apk/debug/app-debug.apk
+          path: ./Tetra-App-Dev/app-debug.apk
           retention-days: 30
