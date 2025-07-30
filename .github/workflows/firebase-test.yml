@@ -28,15 +28,16 @@ jobs:
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}'
+          project_id: '${{ secrets.GCLOUD_PROJECT }}'
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Activate service account
+      - name: Verify authentication
         run: |
-          gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-          gcloud config set project ${{ secrets.GCLOUD_PROJECT }}
+          gcloud auth list
+          gcloud config list
 
       - name: Verify APK exists
         run: |
@@ -55,5 +56,4 @@ jobs:
             --type robo \
             --app Tetra-App-Dev/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
-            --timeout 300 \
-            --project=${{ secrets.GCLOUD_PROJECT }}
+            --timeout 300
