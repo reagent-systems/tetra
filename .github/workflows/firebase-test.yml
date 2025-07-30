@@ -1,0 +1,39 @@
+name: Firebase Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  firebase-test:
+    name: Upload to Firebase Test Lab
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
+
+      - name: Run on Firebase Test Lab
+        uses: google-github-actions/firebase-test-lab@v1
+        with:
+          project_id: ${{ secrets.GCLOUD_PROJECT }}
+          app: Tetra-App-Dev/app-debug.apk
+          test: Tetra-App-Dev/app-debug.apk
+          device: |
+            model=Pixel4,version=30,locale=en,orientation=portrait
