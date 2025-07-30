@@ -14,6 +14,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Discord Build Started Notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🚀 **Tetra CI/CD Pipeline Started** 🚀
+            
+            ⚡ **Trigger:** ${{ github.event_name == 'push' && 'Code Push to Master' || github.event_name == 'workflow_dispatch' && 'Manual Trigger' || github.event_name }}
+            🔨 **Status:** Building APK and preparing Firebase tests...
+            🚀 **Commit:** `${{ github.sha }}`
+            👤 **Author:** ${{ github.actor }}
+            🌿 **Branch:** ${{ github.ref_name }}
+            📝 **Message:** ${{ github.event.head_commit.message }}
+            
+            🔗 **Watch Live:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Let's see if your accessibility agent passes the tests! 🤖🧪
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -60,8 +79,66 @@ jobs:
           path: build-outputs/app-debug.apk
 
       - name: Run tests on Firebase Test Lab
+        id: firebase-test
         uses: asadmansr/Firebase-Test-Lab-Action@v1.0
         with:
           arg-spec: 'tests.yml:robo-test'
         env:
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Discord Success Notification
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🎉 **Tetra Firebase Test - SUCCESS** 🎉
+            
+            ✅ **Build Status:** APK Built Successfully
+            ✅ **Firebase Test:** All Robo Tests Passed
+            🚀 **Commit:** `${{ github.sha }}`
+            👤 **Author:** ${{ github.actor }}
+            🌿 **Branch:** ${{ github.ref_name }}
+            
+            🔗 **View Results:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Your accessibility agent is working perfectly! 🤖✨
+
+      - name: Discord Failure Notification
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ❌ **Tetra Firebase Test - FAILED** ❌
+            
+            💥 **Build Status:** Check build logs for details
+            🔍 **Firebase Test:** Tests may have failed or not run
+            🚀 **Commit:** `${{ github.sha }}`
+            👤 **Author:** ${{ github.actor }}
+            🌿 **Branch:** ${{ github.ref_name }}
+            
+            🔗 **Debug Here:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Time to fix some bugs! 🐛🔧
+
+      - name: Discord Build Success but Test Failure Notification
+        if: steps.firebase-test.outcome == 'failure' && success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ⚠️ **Tetra Firebase Test - PARTIAL SUCCESS** ⚠️
+            
+            ✅ **Build Status:** APK Built Successfully
+            ❌ **Firebase Test:** Robo Tests Failed
+            🚀 **Commit:** `${{ github.sha }}`
+            👤 **Author:** ${{ github.actor }}
+            🌿 **Branch:** ${{ github.ref_name }}
+            
+            🔗 **Check Test Results:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Build succeeded but tests need attention! 🧪
