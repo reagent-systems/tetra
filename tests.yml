@@ -11,8 +11,6 @@ robo-test:
       locale: 'en'
       orientation: portrait
   timeout: 10m
-  max-depth: 20
-  max-steps: 200
   robo-directives:
     # Skip onboarding if it appears
     "text:Skip": "click"
@@ -28,9 +26,8 @@ robo-test:
     "text:Start Agent": "click"
     "text:Stop Agent": "click"
     "text:Enable Accessibility Service": "click"
-    "text:Settings": "click"
     
-    # Navigation drawer items
+    # Navigation drawer items - removed duplicate Settings
     "text:Home": "click"
     "text:Debug": "click"
     "text:Settings": "click" 
