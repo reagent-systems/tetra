@@ -38,7 +38,6 @@ jobs:
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           token: ${{ secrets.FIREBASE_CLI_TOKEN }}
-          groups: testers
           file: ./Tetra-App-Dev/app-debug.apk
           releaseNotes: |
             Pre-built APK upload
