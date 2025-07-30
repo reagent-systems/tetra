@@ -1,6 +1,6 @@
 robo-test:
   type: robo
-  app: Tetra-App-Dev/app-debug.apk
+  app: build-outputs/app-debug.apk
   device:
     - model: oriole
       version: 32
