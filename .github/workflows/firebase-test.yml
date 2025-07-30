@@ -9,7 +9,7 @@ on:
 
 jobs:
   firebase-test:
-    name: Upload to Firebase Test Lab
+    name: Build & Run on Firebase Test Lab
     runs-on: ubuntu-latest
 
     steps:
@@ -25,6 +25,13 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
 
+      - name: Grant execute permission for Gradle
+        run: chmod +x ./tetra/gradlew
+
+      - name: Build APK
+        working-directory: ./tetra
+        run: ./gradlew :Tetra-App-Dev:assembleDebug
+
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
@@ -34,7 +41,8 @@ jobs:
         run: |
           gcloud firebase test android run \
             --type instrumentation \
-            --app ./tetra/Tetra-App-Dev/app-debug.apk \
-            --test Tetra-App-Dev/app-debug.apk \
+            --app ./Tetra-App-Dev/app-debug.apk \
+            --test ./Tetra-App-Dev/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
             --project=${{ secrets.GCLOUD_PROJECT }}
+
