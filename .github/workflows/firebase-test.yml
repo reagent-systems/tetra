@@ -30,9 +30,6 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
 
-      - name: Install gcloud components
-        run: gcloud components install beta
-
       - name: Run on Firebase Test Lab using gcloud CLI
         run: |
           gcloud firebase test android run \
