@@ -30,6 +30,14 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
 
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Activate service account
+        run: |
+          gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+          gcloud config set project ${{ secrets.GCLOUD_PROJECT }}
+
       - name: Verify APK exists
         run: |
           if [ -f "Tetra-App-Dev/app-debug.apk" ]; then
