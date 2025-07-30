@@ -1,4 +1,4 @@
-name: Build and Deploy to Firebase App Distribution
+name: Firebase Test
 
 on:
   push:
@@ -8,47 +8,44 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    name: Build APK and Deploy to Firebase App Distribution
+  firebase-test:
+    name: Upload to Firebase Test Lab
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up JDK 11
-        uses: actions/setup-java@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
 
       - name: Verify APK exists
         run: |
-          if [ -f "./Tetra-App-Dev/app-debug.apk" ]; then
-            echo "APK found: $(ls -la ./Tetra-App-Dev/app-debug.apk)"
+          if [ -f "Tetra-App-Dev/app-debug.apk" ]; then
+            echo "APK found: $(ls -la Tetra-App-Dev/app-debug.apk)"
           else
-            echo "ERROR: APK not found at ./Tetra-App-Dev/app-debug.apk"
+            echo "ERROR: APK not found at Tetra-App-Dev/app-debug.apk"
             echo "Available files in Tetra-App-Dev:"
-            ls -la ./Tetra-App-Dev/ || echo "Tetra-App-Dev directory not found"
+            ls -la Tetra-App-Dev/ || echo "Tetra-App-Dev directory not found"
             exit 1
           fi
 
-      - name: Upload APK to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
-        with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          token: ${{ secrets.FIREBASE_CLI_TOKEN }}
-          file: ./Tetra-App-Dev/app-debug.apk
-          releaseNotes: |
-            Pre-built APK upload
-            Commit: ${{ github.sha }}
-            Branch: ${{ github.ref_name }}
-            
-            Changes: ${{ github.event.head_commit.message }}
-
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: ./Tetra-App-Dev/app-debug.apk
-          retention-days: 30
+      - name: Run on Firebase Test Lab using gcloud CLI
+        run: |
+          gcloud firebase test android run \
+            --type robo \
+            --app Tetra-App-Dev/app-debug.apk \
+            --device model=redfin,version=30,locale=en,orientation=portrait \
+            --timeout 300 \
+            --project=${{ secrets.GCLOUD_PROJECT }}
