@@ -243,3 +243,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **⚠️ Important**: This app requires accessibility permissions to function. It reads screen content to understand context but only sends high-level descriptions to OpenAI, never raw screen data or sensitive information. 
+
