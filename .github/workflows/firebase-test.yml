@@ -24,19 +24,9 @@ jobs:
             exit 1
           fi
 
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v1
+      - name: Run tests on Firebase Test Lab
+        uses: asadmansr/Firebase-Test-Lab-Action@v1.0
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCLOUD_PROJECT }}
-
-      - name: Run Firebase Robo Test
-        run: |
-          gcloud firebase test android run \
-            --type robo \
-            --app Tetra-App-Dev/app-debug.apk \
-            --device model=Pixel2,version=29,locale=en,orientation=portrait
+          arg-spec: 'tests.yml:robo-test'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}

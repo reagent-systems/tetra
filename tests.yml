@@ -1,0 +1,8 @@
+robo-test:
+  type: robo
+  app: Tetra-App-Dev/app-debug.apk
+  device:
+    - model: redfin
+      version: 34
+      locale: 'en'
+      orientation: portrait 
