@@ -1,50 +1,43 @@
-name: Firebase Test
+name: Firebase Robo Test
 
 on:
   push:
-    branches: [master]
-  pull_request:
     branches: [master]
   workflow_dispatch:
 
 jobs:
   firebase-test:
-    name: Upload to Firebase Test Lab
+    name: Run Robo Test on Firebase
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
 
       - name: Verify APK exists
         run: |
           if [ -f "Tetra-App-Dev/app-debug.apk" ]; then
-            echo "APK found: $(ls -la Tetra-App-Dev/app-debug.apk)"
+            echo "✅ APK found: $(ls -la Tetra-App-Dev/app-debug.apk)"
           else
-            echo "ERROR: APK not found at Tetra-App-Dev/app-debug.apk"
-            echo "Available files in Tetra-App-Dev:"
-            ls -la Tetra-App-Dev/ || echo "Tetra-App-Dev directory not found"
+            echo "❌ ERROR: APK not found at Tetra-App-Dev/app-debug.apk"
+            ls -la Tetra-App-Dev/ || echo "Directory missing"
             exit 1
           fi
 
-      - name: Run on Firebase Test Lab
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_CLI_TOKEN }}
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Install gcloud beta components
         run: |
-          firebase --project=${{ secrets.GCLOUD_PROJECT }} firebase test android \
+          gcloud components update --quiet
+          gcloud components install beta --quiet
+
+      - name: Run Robo Test
+        run: |
+          gcloud config set project ${{ secrets.GCLOUD_PROJECT }}
+          gcloud firebase test android run \
             --type robo \
             --app Tetra-App-Dev/app-debug.apk \
-            --device model=redfin,version=30,locale=en,orientation=portrait \
-            --timeout 5m
+            --device model=Pixel2,version=29,locale=en,orientation=portrait
