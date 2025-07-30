@@ -3,6 +3,10 @@ robo-test:
   app: Tetra-App-Dev/app-debug.apk
   device:
     - model: redfin
-      version: 34
+      version: 30
+      locale: 'en'
+      orientation: portrait
+    - model: Pixel2
+      version: 28
       locale: 'en'
       orientation: portrait 
