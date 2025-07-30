@@ -10,37 +10,3 @@ robo-test:
       version: 33
       locale: 'en'
       orientation: portrait
-  timeout: 10m
-  robo-directives:
-    # Skip onboarding if it appears
-    Skip: click
-    Next: click
-    Continue: click
-    Finish: click
-    
-    # Main agent input - test the core functionality
-    "What would you like the agent to do?": "Test agent functionality by clicking buttons and navigating the interface"
-    
-    # Navigation and core actions
-    "Start Agent": click
-    "Stop Agent": click
-    "Enable Accessibility Service": click
-    
-    # Navigation drawer items
-    Home: click
-    Debug: click
-    Settings: click
-    Feedback: click
-    About: click
-    
-    # Toggle controls
-    "Show Red Outlines": click
-    "Hide Red Outlines": click
-    "Toggle Overlay": click
-    "Show Overlay": click
-    "Hide Overlay": click
-    
-    # Ignore potentially problematic elements
-    Stop: ignore
-    Close: ignore
-    Cancel: ignore
