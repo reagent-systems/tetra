@@ -36,5 +36,5 @@ jobs:
             --type instrumentation \
             --app Tetra-App-Dev/app-debug.apk \
             --test Tetra-App-Dev/app-debug.apk \
-            --device model=Pixel5,version=30,locale=en,orientation=portrait \
+            --device model=redfin,version=30,locale=en,orientation=portrait \
             --project=${{ secrets.GCLOUD_PROJECT }}
