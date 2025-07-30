@@ -30,14 +30,15 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
 
-      - name: Debug — Show directory contents
-        run: ls -R
+      - name: Upload APK to GCS bucket
+        run: |
+          gsutil cp ./Tetra-App-Dev/app-debug.apk gs://tetra-testlab-uploads/app-debug.apk
 
-      - name: Run on Firebase Test Lab using gcloud CLI
+      - name: Run Firebase Test Lab using GCS path
         run: |
           gcloud firebase test android run \
             --type instrumentation \
-            --app ./Tetra-App-Dev/app-debug.apk \
-            --test ./Tetra-App-Dev/app-debug.apk \
+            --app gs://tetra-testlab-uploads/app-debug.apk \
+            --test gs://tetra-testlab-uploads/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
             --project=${{ secrets.GCLOUD_PROJECT }}
