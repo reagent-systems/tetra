@@ -13,35 +13,34 @@ robo-test:
   timeout: 10m
   robo-directives:
     # Skip onboarding if it appears
-    "text:Skip": "click"
-    "text:Next": "click"
-    "text:Got it": "click"
-    "text:Continue": "click"
-    "text:Finish": "click"
+    Skip: click
+    Next: click
+    Continue: click
+    Finish: click
     
     # Main agent input - test the core functionality
-    "text:What would you like the agent to do?": "Test agent functionality by clicking buttons and navigating the interface"
+    "What would you like the agent to do?": "Test agent functionality by clicking buttons and navigating the interface"
     
     # Navigation and core actions
-    "text:Start Agent": "click"
-    "text:Stop Agent": "click"
-    "text:Enable Accessibility Service": "click"
+    "Start Agent": click
+    "Stop Agent": click
+    "Enable Accessibility Service": click
     
-    # Navigation drawer items - removed duplicate Settings
-    "text:Home": "click"
-    "text:Debug": "click"
-    "text:Settings": "click" 
-    "text:Feedback": "click"
-    "text:About": "click"
+    # Navigation drawer items
+    Home: click
+    Debug: click
+    Settings: click
+    Feedback: click
+    About: click
     
     # Toggle controls
-    "text:Show Red Outlines": "click"
-    "text:Hide Red Outlines": "click"
-    "text:Toggle Overlay": "click"
-    "text:Show Overlay": "click"
-    "text:Hide Overlay": "click"
+    "Show Red Outlines": click
+    "Hide Red Outlines": click
+    "Toggle Overlay": click
+    "Show Overlay": click
+    "Hide Overlay": click
     
     # Ignore potentially problematic elements
-    "text:Stop": "ignore"
-    "text:Close": "ignore"
-    "text:Cancel": "ignore"
+    Stop: ignore
+    Close: ignore
+    Cancel: ignore
