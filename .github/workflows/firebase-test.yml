@@ -24,12 +24,15 @@ jobs:
             exit 1
           fi
 
-      - name: Set up gcloud with Firebase Test Lab support
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCLOUD_PROJECT }}
-          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          export_default_credentials: true
 
       - name: Run Firebase Robo Test
         run: |
