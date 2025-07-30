@@ -2,8 +2,10 @@ name: Firebase Test
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
   firebase-test:
@@ -22,7 +24,6 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
-
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
