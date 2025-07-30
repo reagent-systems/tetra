@@ -25,19 +25,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
 
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}'
-          project_id: '${{ secrets.GCLOUD_PROJECT }}'
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-
-      - name: Verify authentication
-        run: |
-          gcloud auth list
-          gcloud config list
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
 
       - name: Verify APK exists
         run: |
@@ -50,10 +39,12 @@ jobs:
             exit 1
           fi
 
-      - name: Run on Firebase Test Lab using gcloud CLI
+      - name: Run on Firebase Test Lab
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_CLI_TOKEN }}
         run: |
-          gcloud firebase test android run \
+          firebase --project=${{ secrets.GCLOUD_PROJECT }} firebase test android \
             --type robo \
             --app Tetra-App-Dev/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
-            --timeout 300
+            --timeout 5m
