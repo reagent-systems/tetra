@@ -26,19 +26,27 @@ jobs:
         uses: android-actions/setup-android@v2
 
       - name: Authenticate with Google Cloud
+        id: auth
         uses: google-github-actions/auth@v1
         with:
           credentials_json: '${{ secrets.GCLOUD_SERVICE_KEY }}'
 
       - name: Upload APK to GCS bucket
+        id: upload-apk
         run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="${{ steps.auth.outputs.credentials_file_path }}"
           gsutil cp ./Tetra-App-Dev/app-debug.apk gs://tetra-testlab-uploads/app-debug.apk
+        env:
+          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
 
       - name: Run Firebase Test Lab using GCS path
         run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="${{ steps.auth.outputs.credentials_file_path }}"
           gcloud firebase test android run \
             --type instrumentation \
             --app gs://tetra-testlab-uploads/app-debug.apk \
             --test gs://tetra-testlab-uploads/app-debug.apk \
             --device model=redfin,version=30,locale=en,orientation=portrait \
             --project=${{ secrets.GCLOUD_PROJECT }}
+        env:
+          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
