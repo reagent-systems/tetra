@@ -51,6 +51,12 @@ This repository includes CI/CD workflows for automatically building APK files on
 - `GITHUB_TOKEN`: Automatically provided by GitHub Actions
 - `DISCORD_WEBHOOK` (optional): For Discord notifications
 
+### Permissions Required
+The workflow needs the following permissions:
+- `contents: read` - To checkout the code
+- `pull-requests: write` - To comment on PRs
+- `statuses: write` - To update PR status checks
+
 ### Environment Variables
 - `ENABLE_DISCORD_NOTIFICATIONS`: Set to `true` to enable Discord notifications
 
