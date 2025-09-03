@@ -1,0 +1,165 @@
+name: PR APK Build
+
+on:
+  pull_request:
+    branches: [ master, main, develop ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  build-apk:
+    name: Build Debug APK for PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./Tetra/gradlew
+        working-directory: .
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+        working-directory: ./Tetra
+
+      - name: Verify APK was built
+        id: verify-apk
+        run: |
+          if [ -f "Tetra/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "✅ APK built successfully"
+            APK_SIZE=$(ls -lh Tetra/app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
+            echo "apk-size=$APK_SIZE" >> $GITHUB_OUTPUT
+            echo "build-status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ APK build failed"
+            echo "build-status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Rename APK with PR number
+        if: success()
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          mv Tetra/app/build/outputs/apk/debug/app-debug.apk Tetra/app/build/outputs/apk/debug/tetra-pr-${PR_NUMBER}-${SHORT_SHA}.apk
+          echo "APK renamed to: tetra-pr-${PR_NUMBER}-${SHORT_SHA}.apk"
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetra-pr-${{ github.event.pull_request.number }}-apk
+          path: Tetra/app/build/outputs/apk/debug/tetra-pr-*.apk
+          retention-days: 7
+
+      - name: Comment on PR with build status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr_number = context.payload.pull_request.number;
+            const build_status = '${{ steps.verify-apk.outputs.build-status }}';
+            const apk_size = '${{ steps.verify-apk.outputs.apk-size }}';
+            const workflow_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const short_sha = context.payload.pull_request.head.sha.substring(0, 7);
+            
+            let comment_body = '';
+            
+            if (build_status === 'success') {
+              comment_body = `## 🚀 APK Build Successful!\n\n` +
+                `✅ **Build Status:** Success\n` +
+                `📦 **APK Size:** ${apk_size}\n` +
+                `🔨 **Commit:** \`${short_sha}\`\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n\n` +
+                `### 📥 Download APK\n` +
+                `You can download the APK from the [workflow artifacts](${workflow_url}).\n\n` +
+                `**Artifact Name:** \`tetra-pr-${pr_number}-apk\`\n\n` +
+                `### 🔧 Testing Instructions\n` +
+                `1. Click on the workflow link above\n` +
+                `2. Scroll down to the "Artifacts" section\n` +
+                `3. Download the APK file\n` +
+                `4. Install on your Android device or emulator\n\n` +
+                `*Note: The APK will be available for 7 days.*`;
+            } else {
+              comment_body = `## ❌ APK Build Failed\n\n` +
+                `💥 **Build Status:** Failed\n` +
+                `🔨 **Commit:** \`${short_sha}\`\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n\n` +
+                `Please check the [build logs](${workflow_url}) for more details.`;
+            }
+            
+            // Find existing comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr_number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('APK Build')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment_body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr_number,
+                body: comment_body
+              });
+            }
+
+      # Optional: Add build status check
+      - name: Update PR status check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const build_status = '${{ steps.verify-apk.outputs.build-status }}';
+            const state = build_status === 'success' ? 'success' : 'failure';
+            const description = build_status === 'success' 
+              ? 'APK built successfully' 
+              : 'APK build failed';
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: state,
+              description: description,
+              context: 'APK Build',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
