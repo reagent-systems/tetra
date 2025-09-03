@@ -105,15 +105,27 @@ jobs:
             const apk_size = '${{ steps.verify-apk.outputs.apk-size }}';
             const workflow_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const short_sha = context.payload.pull_request.head.sha.substring(0, 7);
+            const run_number = context.runNumber;
+            const timestamp = new Date().toLocaleString('en-US', { 
+              timeZone: 'UTC',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              timeZoneName: 'short'
+            });
             
             let comment_body = '';
             
             if (build_status === 'success') {
-              comment_body = `## 🚀 APK Build Successful!\n\n` +
+              comment_body = `## 🚀 APK Build #${run_number} Successful!\n\n` +
                 `✅ **Build Status:** Success\n` +
                 `📦 **APK Size:** ${apk_size}\n` +
                 `🔨 **Commit:** \`${short_sha}\`\n` +
-                `👤 **Author:** @${context.payload.pull_request.user.login}\n\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n` +
+                `🕒 **Build Time:** ${timestamp}\n\n` +
                 `### 📥 Download APK\n` +
                 `You can download the APK from the [workflow artifacts](${workflow_url}).\n\n` +
                 `**Artifact Name:** \`tetra-pr-${pr_number}-apk\`\n\n` +
@@ -124,40 +136,21 @@ jobs:
                 `4. Install on your Android device or emulator\n\n` +
                 `*Note: The APK will be available for 7 days.*`;
             } else {
-              comment_body = `## ❌ APK Build Failed\n\n` +
+              comment_body = `## ❌ APK Build #${run_number} Failed\n\n` +
                 `💥 **Build Status:** Failed\n` +
                 `🔨 **Commit:** \`${short_sha}\`\n` +
-                `👤 **Author:** @${context.payload.pull_request.user.login}\n\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n` +
+                `🕒 **Build Time:** ${timestamp}\n\n` +
                 `Please check the [build logs](${workflow_url}) for more details.`;
             }
             
-            // Find existing comment to update
-            const { data: comments } = await github.rest.issues.listComments({
+            // Always create a new comment for each build
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr_number,
+              body: comment_body
             });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('APK Build')
-            );
-            
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: comment_body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr_number,
-                body: comment_body
-              });
-            }
 
       - name: Discord Success Notification
         if: ${{ success() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}

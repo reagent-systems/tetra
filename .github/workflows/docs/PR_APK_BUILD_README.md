@@ -29,13 +29,15 @@ This repository includes CI/CD workflows for automatically building APK files on
 6. Comments on the PR with:
    - Build status
    - APK size
+   - Build number and timestamp
    - Download instructions
    - Direct link to the workflow run
+   - **Note**: Each build creates a new comment for better tracking
 
 ## Downloading the APK
 
 ### From PR Comments
-1. Look for the automated comment on your PR
+1. Look for the latest automated comment on your PR (each build creates a new comment)
 2. Click on the "workflow artifacts" link
 3. Download the APK file
 
@@ -67,6 +69,13 @@ APKs are named as: `tetra-pr-{PR_NUMBER}-{SHORT_SHA}.apk`
 ## Retention Policy
 - APK artifacts are retained for 7 days
 - After 7 days, they are automatically deleted
+
+## Comment Behavior
+- Each build creates a **new comment** on the PR
+- Comments are never updated or edited
+- This allows you to track the history of all builds
+- Each comment includes a build number and timestamp for easy identification
+- Latest build comment will be at the bottom of the PR conversation
 
 ## Troubleshooting
 
