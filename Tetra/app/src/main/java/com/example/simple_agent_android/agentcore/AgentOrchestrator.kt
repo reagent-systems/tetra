@@ -25,7 +25,7 @@ object AgentOrchestrator {
     private var paused: Boolean = false
     private var stopping: Boolean = false
 
-    fun runAgent(instruction: String, apiKey: String, context: Context, onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
+    fun runAgent(instruction: String, apiKey: String, context: Context, baseUrl: String = "https://api.openai.com", onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
         stopping = false
         
         // Track agent start
@@ -126,7 +126,7 @@ Focus on completing the user's request efficiently and accurately.""")
                         }
                         coroutineContext.ensureActive()
                         
-                        val llm = LLMClient(apiKey)
+                        val llm = LLMClient(apiKey, baseUrl)
                         val response = llm.sendWithTools(messages)
                         
                         if (stopping) {

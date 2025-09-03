@@ -29,6 +29,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 fun SettingsScreen(
     openAiKey: String,
     onOpenAiKeyChange: (String) -> Unit,
+    openAiBaseUrl: String,
+    onOpenAiBaseUrlChange: (String) -> Unit,
     onSave: () -> Unit,
     saved: Boolean,
     onCheckForUpdates: () -> Unit,
@@ -135,6 +137,42 @@ fun SettingsScreen(
                         focusedLabelColor = ReagentGreen,
                         unfocusedLabelColor = ReagentGray
                     )
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = openAiBaseUrl,
+                    onValueChange = onOpenAiBaseUrlChange,
+                    label = { 
+                        Text(
+                            "OpenAI Base URL",
+                            style = MaterialTheme.typography.bodyMedium
+                        ) 
+                    },
+                    placeholder = {
+                        Text(
+                            "https://api.openai.com",
+                            color = ReagentGray.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ReagentGreen,
+                        unfocusedBorderColor = ReagentGray,
+                        cursorColor = ReagentGreen,
+                        focusedLabelColor = ReagentGreen,
+                        unfocusedLabelColor = ReagentGray
+                    )
+                )
+                
+                Text(
+                    text = "Use default for OpenAI, or enter a custom endpoint URL for compatible APIs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 8.dp)
                 )
                 
                 Spacer(modifier = Modifier.height(20.dp))

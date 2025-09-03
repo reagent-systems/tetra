@@ -201,6 +201,8 @@ class MainActivity : ComponentActivity() {
                         "settings" -> SettingsScreen(
                             openAiKey = viewModel.openAiKey.value,
                             onOpenAiKeyChange = viewModel::updateOpenAiKey,
+                            openAiBaseUrl = viewModel.openAiBaseUrl.value,
+                            onOpenAiBaseUrlChange = viewModel::updateOpenAiBaseUrl,
                             onSave = { viewModel.saveSettings(this@MainActivity) },
                             saved = viewModel.settingsSaved.value,
                             onCheckForUpdates = {

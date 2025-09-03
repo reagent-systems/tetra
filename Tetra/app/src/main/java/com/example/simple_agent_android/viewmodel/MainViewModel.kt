@@ -48,6 +48,9 @@ class MainViewModel : ViewModel() {
     private val _openAiKey = mutableStateOf("")
     val openAiKey: State<String> = _openAiKey
     
+    private val _openAiBaseUrl = mutableStateOf("https://api.openai.com")
+    val openAiBaseUrl: State<String> = _openAiBaseUrl
+    
     private val _settingsSaved = mutableStateOf(false)
     val settingsSaved: State<Boolean> = _settingsSaved
     
@@ -133,6 +136,7 @@ class MainViewModel : ViewModel() {
     fun initialize(context: Context) {
         // Load saved preferences
         _openAiKey.value = SharedPrefsUtils.getOpenAIKey(context)
+        _openAiBaseUrl.value = SharedPrefsUtils.getOpenAIBaseUrl(context)
         _verticalOffset.value = SharedPrefsUtils.getVerticalOffset(context)
         _completionScreenEnabled.value = SharedPrefsUtils.isCompletionScreenEnabled(context)
         _overlayActive.value = BoundingBoxAccessibilityService.isOverlayActive()
@@ -205,6 +209,7 @@ class MainViewModel : ViewModel() {
             instruction = _agentInput.value,
             apiKey = _openAiKey.value,
             appContext = context,
+            baseUrl = _openAiBaseUrl.value,
             onOutput = { output ->
                 _agentOutput.value += output + "\n"
             }
@@ -222,8 +227,13 @@ class MainViewModel : ViewModel() {
         _openAiKey.value = key
     }
     
+    fun updateOpenAiBaseUrl(baseUrl: String) {
+        _openAiBaseUrl.value = baseUrl
+    }
+    
     fun saveSettings(context: Context) {
         SharedPrefsUtils.setOpenAIKey(context, _openAiKey.value)
+        SharedPrefsUtils.setOpenAIBaseUrl(context, _openAiBaseUrl.value)
         SharedPrefsUtils.setCompletionScreenEnabled(context, _completionScreenEnabled.value)
         _settingsSaved.value = true
     }
