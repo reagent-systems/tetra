@@ -203,6 +203,8 @@ class MainActivity : ComponentActivity() {
                             onOpenAiKeyChange = viewModel::updateOpenAiKey,
                             openAiBaseUrl = viewModel.openAiBaseUrl.value,
                             onOpenAiBaseUrlChange = viewModel::updateOpenAiBaseUrl,
+                            openAiModel = viewModel.openAiModel.value,
+                            onOpenAiModelChange = viewModel::updateOpenAiModel,
                             onSave = { viewModel.saveSettings(this@MainActivity) },
                             saved = viewModel.settingsSaved.value,
                             onCheckForUpdates = {

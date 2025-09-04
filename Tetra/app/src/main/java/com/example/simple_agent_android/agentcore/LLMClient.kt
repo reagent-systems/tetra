@@ -9,10 +9,9 @@ import org.json.JSONObject
 import com.example.simple_agent_android.sentry.ApiErrorTracker
 import com.example.simple_agent_android.sentry.sentryApiCall
 
-class LLMClient(private val apiKey: String, private val baseUrl: String = "https://api.openai.com") {
+class LLMClient(private val apiKey: String, private val baseUrl: String = "https://api.openai.com", private val model: String = "gpt-4o") {
     private val client = OkHttpClient()
     private val apiUrl = "$baseUrl/v1/chat/completions"
-    private val model = "gpt-4o"
 
     // Tool definitions for OpenAI function calling
     private val tools = JSONArray(listOf(

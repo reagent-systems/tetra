@@ -31,6 +31,8 @@ fun SettingsScreen(
     onOpenAiKeyChange: (String) -> Unit,
     openAiBaseUrl: String,
     onOpenAiBaseUrlChange: (String) -> Unit,
+    openAiModel: String,
+    onOpenAiModelChange: (String) -> Unit,
     onSave: () -> Unit,
     saved: Boolean,
     onCheckForUpdates: () -> Unit,
@@ -170,6 +172,42 @@ fun SettingsScreen(
                 
                 Text(
                     text = "Use default for OpenAI, or enter a custom endpoint URL for compatible APIs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = openAiModel,
+                    onValueChange = onOpenAiModelChange,
+                    label = { 
+                        Text(
+                            "Model Name",
+                            style = MaterialTheme.typography.bodyMedium
+                        ) 
+                    },
+                    placeholder = {
+                        Text(
+                            "gpt-4o",
+                            color = ReagentGray.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ReagentGreen,
+                        unfocusedBorderColor = ReagentGray,
+                        cursorColor = ReagentGreen,
+                        focusedLabelColor = ReagentGreen,
+                        unfocusedLabelColor = ReagentGray
+                    )
+                )
+                
+                Text(
+                    text = "Specify the AI model to use (e.g., gpt-4o, gpt-4, gpt-3.5-turbo, or custom models)",
                     style = MaterialTheme.typography.bodySmall,
                     color = ReagentGray.copy(alpha = 0.8f),
                     modifier = Modifier.padding(top = 8.dp)

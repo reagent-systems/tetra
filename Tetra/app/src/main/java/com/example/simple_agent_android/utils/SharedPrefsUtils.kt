@@ -10,6 +10,7 @@ object SharedPrefsUtils {
     private const val VERTICAL_OFFSET_KEY = "vertical_offset"
     private const val OPENAI_KEY = "openai_key"
     private const val OPENAI_BASE_URL = "openai_base_url"
+    private const val OPENAI_MODEL = "openai_model"
     private const val ONBOARDING_COMPLETED_KEY = "onboarding_completed"
     private const val COMPLETION_SCREEN_ENABLED_KEY = "completion_screen_enabled"
 
@@ -51,6 +52,23 @@ object SharedPrefsUtils {
         getSharedPrefs(context, AGENT_PREFS)
             .edit()
             .putString(OPENAI_BASE_URL, cleanUrl)
+            .apply()
+    }
+
+    fun getOpenAIModel(context: Context): String {
+        return getSharedPrefs(context, AGENT_PREFS)
+            .getString(OPENAI_MODEL, "gpt-4o") ?: "gpt-4o"
+    }
+
+    fun setOpenAIModel(context: Context, model: String) {
+        val cleanModel = if (model.isBlank()) {
+            "gpt-4o"
+        } else {
+            model.trim()
+        }
+        getSharedPrefs(context, AGENT_PREFS)
+            .edit()
+            .putString(OPENAI_MODEL, cleanModel)
             .apply()
     }
 
