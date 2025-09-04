@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
@@ -38,7 +39,9 @@ fun SettingsScreen(
     onCheckForUpdates: () -> Unit,
     onRedoOnboarding: () -> Unit = {},
     completionScreenEnabled: Boolean = true,
-    onCompletionScreenToggle: (Boolean) -> Unit = {}
+    onCompletionScreenToggle: (Boolean) -> Unit = {},
+    onTestLLM: (() -> Unit)? = null,
+    testingLLM: Boolean = false
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -226,6 +229,40 @@ fun SettingsScreen(
                         color = ReagentBlack, 
                         fontWeight = FontWeight.Medium
                     )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Test LLM Button
+                onTestLLM?.let { testFunction ->
+                    OutlinedButton(
+                        onClick = { if (!testingLLM) testFunction() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !testingLLM && openAiKey.isNotBlank(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (testingLLM) ReagentGray else ReagentGreen
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (testingLLM) {
+                            Text(
+                                "Testing LLM Connection...",
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = ReagentGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Test LLM Connection",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
                 
                 if (saved) {

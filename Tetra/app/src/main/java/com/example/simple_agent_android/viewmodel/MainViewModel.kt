@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simple_agent_android.agentcore.AgentStateManager
+import com.example.simple_agent_android.agentcore.LLMClient
 import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.OverlayPermissionUtils
 import com.example.simple_agent_android.utils.VoiceInputManager
@@ -59,6 +60,10 @@ class MainViewModel : ViewModel() {
     
     private val _completionScreenEnabled = mutableStateOf(true)
     val completionScreenEnabled: State<Boolean> = _completionScreenEnabled
+    
+    // Test LLM State
+    private val _testingLLM = mutableStateOf(false)
+    val testingLLM: State<Boolean> = _testingLLM
     
     // Overlay State
     private val _overlayActive = mutableStateOf(false)
@@ -246,6 +251,51 @@ class MainViewModel : ViewModel() {
         SharedPrefsUtils.setOpenAIModel(context, _openAiModel.value)
         SharedPrefsUtils.setCompletionScreenEnabled(context, _completionScreenEnabled.value)
         _settingsSaved.value = true
+    }
+    
+    fun testLLMConnection(onResult: (Boolean, String) -> Unit) {
+        if (_testingLLM.value) return // Prevent multiple tests
+        
+        _testingLLM.value = true
+        
+        viewModelScope.launch {
+            try {
+                // Clean base URL (remove trailing slash, default to OpenAI if empty)
+                val cleanBaseUrl = _openAiBaseUrl.value.trim()
+                    .removePrefix("http://").removePrefix("https://")
+                    .removeSuffix("/")
+                    .let { if (it.isEmpty()) "api.openai.com" else it }
+                    .let { "https://$it" }
+                
+                // Clean model name (default to gpt-4o if empty)
+                val cleanModel = _openAiModel.value.trim()
+                    .let { if (it.isEmpty()) "gpt-4o" else it }
+                
+                val llmClient = LLMClient(_openAiKey.value, cleanBaseUrl, cleanModel)
+                
+                // Simple test message without tools
+                val testMessages = listOf(
+                    mapOf("role" to "user", "content" to "just tell hi")
+                )
+                
+                val response = llmClient.sendWithTools(testMessages)
+                
+                if (response != null && !response.has("error")) {
+                    onResult(true, "✅ LLM connection successful!")
+                } else {
+                    val errorMsg = if (response?.has("error") == true) {
+                        response.getString("error")
+                    } else {
+                        "Unknown LLM error"
+                    }
+                    onResult(false, "❌ LLM Error: $errorMsg")
+                }
+            } catch (e: Exception) {
+                onResult(false, "❌ LLM Test Failed: ${e.message}")
+            } finally {
+                _testingLLM.value = false
+            }
+        }
     }
     
     fun updateCompletionScreenEnabled(enabled: Boolean) {

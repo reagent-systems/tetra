@@ -214,7 +214,13 @@ class MainActivity : ComponentActivity() {
                             },
                             onRedoOnboarding = viewModel::startOnboarding,
                             completionScreenEnabled = viewModel.completionScreenEnabled.value,
-                            onCompletionScreenToggle = viewModel::updateCompletionScreenEnabled
+                            onCompletionScreenToggle = viewModel::updateCompletionScreenEnabled,
+                            onTestLLM = {
+                                viewModel.testLLMConnection { success, message ->
+                                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            testingLLM = viewModel.testingLLM.value
                         )
                         "feedback" -> FeedbackScreen(viewModel)
                         "about" -> AboutScreen()
