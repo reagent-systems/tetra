@@ -5,7 +5,7 @@ on:
     branches: [ master, main, develop ]
     types: [ opened, synchronize, reopened ]
   push:
-    branches: [ cursor/ensure-ci-runs-for-every-pull-request-7f84 ]
+    branches: [ cursor/ensure-ci-runs-for-every-pull-request-7f84 ]  # Temporary for testing
 
 jobs:
   build-apk:
@@ -22,6 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Discord notification - Build Started
       - name: Discord Build Started Notification
         if: ${{ vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
@@ -29,15 +30,14 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            🔨 **APK Build Started** 🔨
+            🔨 **PR APK Build Started** 🔨
             
-            📋 **${{ github.event_name == 'pull_request' && format('PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) || format('Branch: {0}', github.ref_name) }}**
-            👤 **Author:** ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login || github.actor }}
+            📋 **PR #${{ github.event.pull_request.number || 'Direct Push' }}:** ${{ github.event.pull_request.title || github.ref_name }}
+            👤 **Author:** ${{ github.event.pull_request.user.login || github.actor }}
             🔨 **Status:** Building APK...
-            🚀 **Commit:** `${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}`
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha || github.sha }}`
             
-            🔗 **Link:** ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, github.sha) }}
-            🔗 **Build Status:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🔗 **Link:** ${{ github.event.pull_request.html_url || github.event.repository.html_url }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -80,7 +80,7 @@ jobs:
             exit 1
           fi
 
-      - name: Rename APK with PR number or branch
+      - name: Rename APK with PR number
         if: success()
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
@@ -90,7 +90,7 @@ jobs:
             echo "APK renamed to: tetra-pr-${PR_NUMBER}-${SHORT_SHA}.apk"
           else
             SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9-]/_/g')
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9-]/_/g' | cut -c1-30)
             mv Tetra/app/build/outputs/apk/debug/app-debug.apk Tetra/app/build/outputs/apk/debug/tetra-${BRANCH_NAME}-${SHORT_SHA}.apk
             echo "APK renamed to: tetra-${BRANCH_NAME}-${SHORT_SHA}.apk"
           fi
@@ -99,7 +99,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event_name == 'pull_request' && format('tetra-pr-{0}-apk', github.event.pull_request.number) || format('tetra-{0}-apk', github.ref_name) }}
+          name: tetra-pr-${{ github.event.pull_request.number || github.run_id }}-apk
           path: Tetra/app/build/outputs/apk/debug/tetra-*.apk
           retention-days: 7
 
@@ -107,6 +107,7 @@ jobs:
         if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr_number = context.payload.pull_request.number;
             const build_status = '${{ steps.verify-apk.outputs.build-status }}';
@@ -152,6 +153,7 @@ jobs:
                 `Please check the [build logs](${workflow_url}) for more details.`;
             }
             
+            // Always create a new comment for each build
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -159,16 +161,17 @@ jobs:
                 issue_number: pr_number,
                 body: comment_body
               });
-              console.log(`Successfully commented on PR #${pr_number}`);
             } catch (error) {
               console.error(`Failed to comment on PR: ${error.message}`);
-              // Don't fail the workflow if commenting fails (e.g., on fork PRs)
+              // Don't fail the workflow if commenting fails
             }
 
+      # Optional: Add build status check
       - name: Update PR status check
         if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const build_status = '${{ steps.verify-apk.outputs.build-status }}';
             const state = build_status === 'success' ? 'success' : 'failure';
@@ -186,12 +189,12 @@ jobs:
                 context: 'APK Build',
                 target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
               });
-              console.log(`Successfully updated commit status`);
             } catch (error) {
               console.error(`Failed to update commit status: ${error.message}`);
               // Don't fail the workflow if status update fails
             }
 
+      # Discord notification - Build Success
       - name: Discord Success Notification
         if: ${{ success() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
@@ -199,20 +202,20 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            ✅ **APK Build - SUCCESS** ✅
+            ✅ **PR APK Build - SUCCESS** ✅
             
-            📋 **${{ github.event_name == 'pull_request' && format('PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) || format('Branch: {0}', github.ref_name) }}**
+            📋 **PR #${{ github.event.pull_request.number || 'Direct Push' }}:** ${{ github.event.pull_request.title || github.ref_name }}
             ✅ **Build Status:** APK Built Successfully
             📦 **APK Size:** ${{ steps.verify-apk.outputs.apk-size }}
-            👤 **Author:** ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login || github.actor }}
-            🚀 **Commit:** `${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}`
+            👤 **Author:** ${{ github.event.pull_request.user.login || github.actor }}
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha || github.sha }}`
             
-            📥 **Download:** The APK is available in the workflow artifacts
-            🔗 **Link:** ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, github.sha) }}
-            🔗 **Artifacts:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            📥 **Download:** Check the workflow artifacts
+            🔗 **Link:** ${{ github.event.pull_request.html_url || github.event.repository.html_url }}
             
             The APK is ready for testing! 🎉
 
+      # Discord notification - Build Failed
       - name: Discord Failure Notification
         if: ${{ failure() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
@@ -220,14 +223,13 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            ❌ **APK Build - FAILED** ❌
+            ❌ **PR APK Build - FAILED** ❌
             
-            📋 **${{ github.event_name == 'pull_request' && format('PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title) || format('Branch: {0}', github.ref_name) }}**
+            📋 **PR #${{ github.event.pull_request.number || 'Direct Push' }}:** ${{ github.event.pull_request.title || github.ref_name }}
             💥 **Build Status:** Build Failed
-            👤 **Author:** ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login || github.actor }}
-            🚀 **Commit:** `${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}`
+            👤 **Author:** ${{ github.event.pull_request.user.login || github.actor }}
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha || github.sha }}`
             
             🔗 **Debug Here:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            🔗 **Link:** ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, github.sha) }}
             
             Please check the build logs for errors! 🔧
