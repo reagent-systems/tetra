@@ -2,7 +2,7 @@ name: PR APK Build - Comment Handler
 
 on:
   workflow_run:
-    workflows: ["PR APK Build", "PR APK Build with Discord"]
+    workflows: ["PR APK Build"]
     types:
       - completed
 
@@ -176,26 +176,20 @@ jobs:
               throw error;
             }
 
-      # Discord notifications for builds that used the Discord workflow
-      - name: Discord Build Completed Notification
+      # Discord notification after PR comment is posted
+      - name: Discord Comment Posted Notification
         if: |
-          (steps.build-info.outputs.workflow-type == 'discord' || contains(github.event.workflow_run.name, 'Discord')) &&
           vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && 
-          secrets.DISCORD_WEBHOOK != ''
+          secrets.DISCORD_WEBHOOK != '' &&
+          steps.build-info.outputs.pr-number != ''
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            {% raw %}${{ steps.build-info.outputs.build-status == 'success' && '✅' || '❌' }} **PR APK Build ${{ steps.build-info.outputs.build-status == 'success' && 'Successful' || 'Failed' }}!** ${{ steps.build-info.outputs.build-status == 'success' && '✅' || '❌' }}
+            {% raw %}💬 **PR Comment Posted Successfully!**
             
             📋 **PR #${{ steps.build-info.outputs.pr-number }}**
-            👤 **Author:** @${{ steps.find-pr.outputs.pr-author }}
-            ${{ steps.build-info.outputs.build-status == 'success' && '📦' || '💥' }} **Status:** ${{ steps.build-info.outputs.build-status == 'success' && 'APK Built Successfully' || 'Build Failed' }}
-            ${{ steps.build-info.outputs.build-status == 'success' && format('📏 **Size:** {0}', steps.build-info.outputs.apk-size) || '' }}
-            🔨 **Commit:** `${{ steps.build-info.outputs.commit-sha }}`
-            🕒 **Build #${{ github.event.workflow_run.run_number }}**
+            ${{ steps.build-info.outputs.build-status == 'success' && '✅ APK ready for download' || '❌ Build failed - check logs' }}
             
-            🔗 **Workflow:** ${{ github.event.workflow_run.html_url }}
-            
-            ${{ steps.build-info.outputs.build-status == 'success' && '✨ Comment posted on PR with download instructions!' || 'Please check the build logs for errors! 🔧' }}{% endraw %}
+            The PR has been updated with build details and download instructions.{% endraw %}

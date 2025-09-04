@@ -4,20 +4,24 @@ This repository includes CI/CD workflows for automatically building APK files on
 
 ## Available Workflows
 
-### 1. Basic PR APK Build (`pr-apk-build.yml`)
+### PR APK Build (`pr-apk-build.yml`)
 - **Trigger**: Runs on all pull requests to master, main, or develop branches
 - **Features**:
   - Builds debug APK automatically
   - Uploads APK as a GitHub artifact
   - Comments on PR with build status and download instructions
   - Updates PR status check
+  - Discord notifications (optional)
+  
+### Discord Setup (Optional)
+To enable Discord notifications:
+1. Set `DISCORD_WEBHOOK` secret in repository settings
+2. Set `ENABLE_DISCORD_NOTIFICATIONS` variable to `true`
 
-### 2. PR APK Build with Discord (`pr-apk-build-discord.yml`)
-- **Trigger**: Same as basic workflow
-- **Features**: All basic features plus Discord notifications
-- **Setup Required**:
-  - Set `DISCORD_WEBHOOK` secret in repository settings
-  - Set `ENABLE_DISCORD_NOTIFICATIONS` variable to `true`
+Discord will notify you:
+- When build starts
+- When build succeeds/fails
+- When PR comment is posted
 
 ## How It Works
 
