@@ -21,18 +21,19 @@ This repository includes CI/CD workflows for automatically building APK files on
 
 ## How It Works
 
-1. When a PR is created or updated, the workflow automatically starts
+1. When a PR is created or updated, the build workflow automatically starts
 2. It sets up the build environment (JDK 17, Android SDK)
 3. Builds the debug APK from the `Tetra/` directory
 4. Renames the APK with PR number and commit SHA
 5. Uploads the APK as an artifact (retained for 7 days)
-6. Comments on the PR with:
-   - Build status
-   - APK size
-   - Build number and timestamp
-   - Download instructions
-   - Direct link to the workflow run
-   - **Note**: Each build creates a new comment for better tracking
+6. A separate comment workflow (`pr-apk-build-comment.yml`) handles:
+   - Posting comments on the PR with build status
+   - Updating commit statuses
+   - Sending Discord notifications (if enabled)
+   
+**Important**: The workflow uses a two-stage approach to support PRs from forks:
+- Stage 1: Build workflow runs with limited permissions (safe for fork PRs)
+- Stage 2: Comment workflow runs after build completion with full permissions
 
 ## Downloading the APK
 
@@ -54,13 +55,30 @@ This repository includes CI/CD workflows for automatically building APK files on
 - `DISCORD_WEBHOOK` (optional): For Discord notifications
 
 ### Permissions Required
-The workflow needs the following permissions:
-- `contents: read` - To checkout the code
+The workflows use different permissions for security:
+
+**Build workflows** (`pr-apk-build.yml`, `pr-apk-build-discord.yml`):
+- `contents: read` - To checkout and build the code
+
+**Comment workflow** (`pr-apk-build-comment.yml`):
+- `contents: read` - To access workflow artifacts
 - `pull-requests: write` - To comment on PRs
 - `statuses: write` - To update PR status checks
+- `actions: read` - To download artifacts from other workflows
 
 ### Environment Variables
 - `ENABLE_DISCORD_NOTIFICATIONS`: Set to `true` to enable Discord notifications
+
+## Troubleshooting
+
+### PRs from Forks
+The workflows are designed to work with PRs from forked repositories. If you see "Resource not accessible by integration" errors, ensure you're using the latest version of the workflows which includes the `pr-apk-build-comment.yml` workflow for handling comments and status updates.
+
+### Missing Comments
+If PR comments aren't appearing:
+1. Check that `pr-apk-build-comment.yml` exists and is enabled
+2. Verify the build workflow completed and uploaded artifacts
+3. Check the Actions tab for any errors in the comment workflow
 
 ## Artifact Naming Convention
 APKs are named as: `tetra-pr-{PR_NUMBER}-{SHORT_SHA}.apk`
