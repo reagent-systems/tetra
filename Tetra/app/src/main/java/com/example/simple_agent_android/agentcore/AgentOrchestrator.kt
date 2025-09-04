@@ -138,9 +138,10 @@ Focus on completing the user's request efficiently and accurately.""")
                         LogManager.log(TAG, "Step $step: LLM response: $response")
                         
                         if (response == null || response.has("error")) {
-                            val errorMessage = response?.optString("error") ?: "Unknown LLM error"
+                            val errorMessage = response?.optString("error")?.takeIf { it.isNotBlank() } ?: "Unknown LLM error"
+                            LogManager.log(TAG, "LLM error detected. Response: $response", LogLevel.ERROR)
                             LogManager.log(TAG, "LLM error: $errorMessage", LogLevel.ERROR)
-                            onOutput?.invoke("❌ LLM error: $errorMessage")
+                            onOutput?.invoke("❌ LLM Error: $errorMessage")
                             break
                         }
                         

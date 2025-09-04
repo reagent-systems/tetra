@@ -9,6 +9,11 @@ import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.*
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +57,27 @@ fun DebugScreen(
 ) {
     val context = LocalContext.current
     val logLineCount = remember { mutableStateOf(0) }
+    var hasStoragePermission by remember { 
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        ) 
+    }
+    
+    // Permission launcher for storage access
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasStoragePermission = isGranted
+        if (isGranted) {
+            exportLogsToFile(context)
+        } else {
+            Toast.makeText(context, "Storage permission required to export logs to Downloads folder", Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Update log line count every 2 seconds (less frequent to reduce lag)
     LaunchedEffect(Unit) {
@@ -62,21 +88,19 @@ fun DebugScreen(
         }
     }
 
-    fun exportLogsToFile() {
+    fun exportLogsToFile(context: Context) {
         try {
             val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
             val fileName = "simple_agent_logs_$timestamp.txt"
             
-            // Use app's external files directory (doesn't require special permissions)
-            val appExternalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                ?: context.getExternalFilesDir(null)
+            // Save to Downloads folder for quick access
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             
-            if (appExternalDir == null) {
-                Toast.makeText(context, "Cannot access external storage", Toast.LENGTH_LONG).show()
-                return
+            if (!downloadsDir.exists()) {
+                downloadsDir.mkdirs()
             }
             
-            val file = File(appExternalDir, fileName)
+            val file = File(downloadsDir, fileName)
             
             val logContent = LogManager.getFullLog()
             if (logContent.isBlank()) {
@@ -96,17 +120,34 @@ fun DebugScreen(
             
             // Verify file was created and has content
             if (file.exists() && file.length() > 0) {
-                Toast.makeText(context, "Logs exported to:\n${file.absolutePath}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Logs exported to Downloads:\n${file.name}", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(context, "Failed to create log file", Toast.LENGTH_LONG).show()
             }
             
         } catch (e: SecurityException) {
-            Toast.makeText(context, "Permission denied: Cannot write to external storage", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Permission denied: Cannot write to Downloads folder", Toast.LENGTH_LONG).show()
         } catch (e: java.io.IOException) {
             Toast.makeText(context, "IO Error: ${e.message}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    fun handleExportLogs() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ uses scoped storage, Downloads folder access works without permission
+            exportLogsToFile(context)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 6-9 needs WRITE_EXTERNAL_STORAGE permission
+            if (hasStoragePermission) {
+                exportLogsToFile(context)
+            } else {
+                permissionLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        } else {
+            // Below Android 6, no runtime permissions needed
+            exportLogsToFile(context)
         }
     }
 
@@ -452,7 +493,7 @@ fun DebugScreen(
                         }
                     
                         Button(
-                        onClick = { exportLogsToFile() },
+                        onClick = { handleExportLogs() },
                         modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = ReagentBlue),
                         shape = RoundedCornerShape(12.dp)
@@ -471,7 +512,7 @@ fun DebugScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                     Text(
-                    text = "Logs are stored in memory and exported to app's external files directory (Android/data/com.example.simple_agent_android/files/Documents/) when needed. This improves performance by avoiding UI lag and works without special permissions.",
+                    text = "Logs are stored in memory and exported to Downloads folder for quick access. Requires storage permission on Android 6-9, works automatically on Android 10+.",
                     style = MaterialTheme.typography.bodySmall,
                     color = ReagentGray.copy(alpha = 0.8f),
                     lineHeight = 16.sp
