@@ -67,20 +67,46 @@ fun DebugScreen(
             val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
             val fileName = "simple_agent_logs_$timestamp.txt"
             
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, fileName)
+            // Use app's external files directory (doesn't require special permissions)
+            val appExternalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+                ?: context.getExternalFilesDir(null)
+            
+            if (appExternalDir == null) {
+                Toast.makeText(context, "Cannot access external storage", Toast.LENGTH_LONG).show()
+                return
+            }
+            
+            val file = File(appExternalDir, fileName)
             
             val logContent = LogManager.getFullLog()
+            if (logContent.isBlank()) {
+                Toast.makeText(context, "No logs to export", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
             FileWriter(file).use { writer ->
                 writer.write("Simple Agent Debug Logs\n")
                 writer.write("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n")
-                writer.write("=".repeat(50) + "\n\n")
+                writer.write("App Version: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}\n")
+                writer.write("Android Version: ${android.os.Build.VERSION.RELEASE}\n")
+                writer.write("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
+                writer.write("=".repeat(60) + "\n\n")
                 writer.write(logContent)
             }
             
-            Toast.makeText(context, "Logs exported to Downloads/$fileName", Toast.LENGTH_LONG).show()
+            // Verify file was created and has content
+            if (file.exists() && file.length() > 0) {
+                Toast.makeText(context, "Logs exported to:\n${file.absolutePath}", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, "Failed to create log file", Toast.LENGTH_LONG).show()
+            }
+            
+        } catch (e: SecurityException) {
+            Toast.makeText(context, "Permission denied: Cannot write to external storage", Toast.LENGTH_LONG).show()
+        } catch (e: java.io.IOException) {
+            Toast.makeText(context, "IO Error: ${e.message}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(context, "Failed to export logs: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -445,7 +471,7 @@ fun DebugScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                     Text(
-                    text = "Logs are stored in memory and exported to Downloads folder when needed. This improves performance by avoiding UI lag.",
+                    text = "Logs are stored in memory and exported to app's external files directory (Android/data/com.example.simple_agent_android/files/Documents/) when needed. This improves performance by avoiding UI lag and works without special permissions.",
                     style = MaterialTheme.typography.bodySmall,
                     color = ReagentGray.copy(alpha = 0.8f),
                     lineHeight = 16.sp

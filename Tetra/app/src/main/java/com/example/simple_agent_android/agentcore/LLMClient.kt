@@ -219,18 +219,67 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
                                 )
                             }
                         }
-                        else -> ApiErrorTracker.trackOpenAIError(
-                            error = Exception("HTTP ${response.code}: ${responseBody}"),
-                            endpoint = apiUrl,
-                            requestBody = requestBody.take(500),
-                            responseCode = response.code,
-                            responseBody = responseBody,
-                            apiKey = apiKey
-                        )
+                        405 -> {
+                            val errorReason = "Method Not Allowed - The API endpoint doesn't support POST requests. Check if the base URL is correct."
+                            ApiErrorTracker.trackOpenAIError(
+                                error = Exception("$errorReason (HTTP ${response.code})"),
+                                endpoint = apiUrl,
+                                requestBody = requestBody.take(500),
+                                responseCode = response.code,
+                                responseBody = responseBody,
+                                apiKey = apiKey
+                            )
+                        }
+                        404 -> {
+                            val errorReason = "Not Found - The API endpoint doesn't exist. Check if the base URL and model are correct."
+                            ApiErrorTracker.trackOpenAIError(
+                                error = Exception("$errorReason (HTTP ${response.code})"),
+                                endpoint = apiUrl,
+                                requestBody = requestBody.take(500),
+                                responseCode = response.code,
+                                responseBody = responseBody,
+                                apiKey = apiKey
+                            )
+                        }
+                        else -> {
+                            val commonErrors = mapOf(
+                                500 to "Internal Server Error - The API service is experiencing issues",
+                                502 to "Bad Gateway - Connection issues between client and server",
+                                503 to "Service Unavailable - The API service is temporarily down",
+                                504 to "Gateway Timeout - The API service is not responding"
+                            )
+                            val errorReason = commonErrors[response.code] ?: "Unknown error"
+                            
+                            ApiErrorTracker.trackOpenAIError(
+                                error = Exception("$errorReason (HTTP ${response.code})"),
+                                endpoint = apiUrl,
+                                requestBody = requestBody.take(500),
+                                responseCode = response.code,
+                                responseBody = responseBody,
+                                apiKey = apiKey
+                            )
+                        }
                     }
                     
                     val errorJson = JSONObject()
-                    errorJson.put("error", "HTTP ${response.code}")
+                    
+                    // Provide more descriptive error messages
+                    val errorReason = when (response.code) {
+                        401 -> "Authentication Failed - Check your OpenAI API key"
+                        402 -> "Payment Required - Check your OpenAI account billing"
+                        403 -> "Forbidden - API key lacks necessary permissions"
+                        404 -> "Not Found - Check if the base URL and endpoint are correct"
+                        405 -> "Method Not Allowed - The API endpoint doesn't support POST requests"
+                        429 -> "Rate Limit Exceeded - Too many requests, please wait"
+                        500 -> "Internal Server Error - API service is experiencing issues"
+                        502 -> "Bad Gateway - Connection issues between client and server"
+                        503 -> "Service Unavailable - API service is temporarily down"
+                        504 -> "Gateway Timeout - API service is not responding"
+                        else -> "HTTP ${response.code}"
+                    }
+                    
+                    errorJson.put("error", errorReason)
+                    errorJson.put("http_code", response.code)
                     errorJson.put("body", responseBody ?: "null")
                     return@sentryApiCall errorJson
                 }
