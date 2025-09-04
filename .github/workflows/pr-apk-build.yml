@@ -22,7 +22,6 @@ jobs:
           fetch-depth: 0
 
       - name: Discord Build Started Notification
-        if: ${{ secrets.DISCORD_WEBHOOK }}
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -154,7 +153,7 @@ jobs:
             });
 
       - name: Discord Success Notification
-        if: ${{ success() && secrets.DISCORD_WEBHOOK }}
+        if: success()
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -174,7 +173,7 @@ jobs:
             The APK is ready for testing! 🎉
 
       - name: Discord Failure Notification
-        if: ${{ failure() && secrets.DISCORD_WEBHOOK }}
+        if: failure()
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
