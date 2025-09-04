@@ -1,4 +1,4 @@
-name: PR APK Build
+name: PR APK Build with Discord
 
 on:
   pull_request:
@@ -13,12 +13,30 @@ jobs:
       contents: read
       pull-requests: write
       statuses: write
+      issues: write
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Discord Build Started Notification
+        if: ${{ vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🔨 **PR APK Build Started** 🔨
+            
+            📋 **PR #${{ github.event.pull_request.number }}:** ${{ github.event.pull_request.title }}
+            👤 **Author:** ${{ github.event.pull_request.user.login }}
+            🔨 **Status:** Building APK...
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha }}`
+            
+            🔗 **PR Link:** ${{ github.event.pull_request.html_url }}
+            🔗 **Build Status:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -134,6 +152,45 @@ jobs:
               issue_number: pr_number,
               body: comment_body
             });
+
+      - name: Discord Success Notification
+        if: ${{ success() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ✅ **PR APK Build - SUCCESS** ✅
+            
+            📋 **PR #${{ github.event.pull_request.number }}:** ${{ github.event.pull_request.title }}
+            ✅ **Build Status:** APK Built Successfully
+            📦 **APK Size:** ${{ steps.verify-apk.outputs.apk-size }}
+            👤 **Author:** ${{ github.event.pull_request.user.login }}
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha }}`
+            
+            📥 **Download:** Check the PR comment for download instructions
+            🔗 **PR Link:** ${{ github.event.pull_request.html_url }}
+            
+            The APK is ready for testing! 🎉
+
+      - name: Discord Failure Notification
+        if: ${{ failure() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ❌ **PR APK Build - FAILED** ❌
+            
+            📋 **PR #${{ github.event.pull_request.number }}:** ${{ github.event.pull_request.title }}
+            💥 **Build Status:** Build Failed
+            👤 **Author:** ${{ github.event.pull_request.user.login }}
+            🚀 **Commit:** `${{ github.event.pull_request.head.sha }}`
+            
+            🔗 **Debug Here:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🔗 **PR Link:** ${{ github.event.pull_request.html_url }}
+            
+            Please check the build logs for errors! 🔧
 
       # Optional: Add build status check
       - name: Update PR status check
