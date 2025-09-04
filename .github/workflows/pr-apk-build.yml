@@ -1,7 +1,7 @@
 name: PR APK Build with Discord
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [ master, main, develop ]
     types: [ opened, synchronize, reopened ]
 
@@ -19,6 +19,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Discord Build Started Notification
@@ -144,7 +145,6 @@ jobs:
                 `Please check the [build logs](${workflow_url}) for more details.`;
             }
             
-            // Always create a new comment for each build
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -191,7 +191,6 @@ jobs:
             
             Please check the build logs for errors! 🔧
 
-      # Optional: Add build status check
       - name: Update PR status check
         if: always()
         uses: actions/github-script@v7
@@ -213,3 +212,5 @@ jobs:
               context: 'APK Build',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });
+
+
