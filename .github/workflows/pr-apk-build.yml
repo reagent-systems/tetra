@@ -23,6 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Discord Build Started Notification
+        if: false
         uses: Ilshidur/action-discord@master
         with:
           args: |
