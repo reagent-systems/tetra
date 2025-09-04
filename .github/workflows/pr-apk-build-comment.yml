@@ -10,18 +10,35 @@ jobs:
   comment:
     name: Comment on PR
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'cancelled'
     permissions:
       pull-requests: write
       statuses: write
       actions: read
     
     steps:
+      - name: Check workflow run info
+        run: |
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+          echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
+          echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Repository: ${{ github.event.workflow_run.repository.full_name }}"
+          
       - name: Download build outputs
-        uses: actions/download-artifact@v4
+        id: download-artifacts
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v2
         with:
+          workflow: ${{ github.event.workflow_run.workflow_id }}
+          run_id: ${{ github.event.workflow_run.id }}
           name: build-outputs-${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
+          
+      - name: Check if artifacts were downloaded
+        if: steps.download-artifacts.outcome == 'failure'
+        run: |
+          echo "Failed to download artifacts, checking if this is an old workflow run without artifacts"
+          echo "Workflow run was from: ${{ github.event.workflow_run.created_at }}"
+          exit 0
           
       - name: Read build outputs
         id: build-info
@@ -161,7 +178,10 @@ jobs:
 
       # Discord notifications for builds that used the Discord workflow
       - name: Discord Build Completed Notification
-        if: ${{ steps.build-info.outputs.workflow-type == 'discord' && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
+        if: |
+          (steps.build-info.outputs.workflow-type == 'discord' || contains(github.event.workflow_run.name, 'Discord')) &&
+          vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && 
+          secrets.DISCORD_WEBHOOK != ''
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
