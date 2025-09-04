@@ -67,27 +67,6 @@ fun DebugScreen(
         ) 
     }
     
-    // Permission launcher for storage access
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasStoragePermission = isGranted
-        if (isGranted) {
-            exportLogsToFile(context)
-        } else {
-            Toast.makeText(context, "Storage permission required to export logs to Downloads folder", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    // Update log line count every 2 seconds (less frequent to reduce lag)
-    LaunchedEffect(Unit) {
-        while (true) {
-            val fullLog = LogManager.getFullLog()
-            logLineCount.value = if (fullLog.isBlank()) 0 else fullLog.lines().size
-            kotlinx.coroutines.delay(2000)
-        }
-    }
-
     fun exportLogsToFile(context: Context) {
         try {
             val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
@@ -131,6 +110,27 @@ fun DebugScreen(
             Toast.makeText(context, "IO Error: ${e.message}", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    // Permission launcher for storage access
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasStoragePermission = isGranted
+        if (isGranted) {
+            exportLogsToFile(context)
+        } else {
+            Toast.makeText(context, "Storage permission required to export logs to Downloads folder", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Update log line count every 2 seconds (less frequent to reduce lag)
+    LaunchedEffect(Unit) {
+        while (true) {
+            val fullLog = LogManager.getFullLog()
+            logLineCount.value = if (fullLog.isBlank()) 0 else fullLog.lines().size
+            kotlinx.coroutines.delay(2000)
         }
     }
     
