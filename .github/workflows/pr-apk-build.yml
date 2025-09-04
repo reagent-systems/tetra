@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
+      statuses: write
     
     steps:
       - name: Checkout Code
@@ -19,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Discord Build Started Notification
-        if: vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != ''
+        if: ${{ vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -92,27 +94,97 @@ jobs:
           path: Tetra/app/build/outputs/apk/debug/tetra-pr-*.apk
           retention-days: 7
 
-      # Save build outputs for the comment workflow
-      - name: Save build outputs
+      - name: Comment on PR with build status
         if: always()
-        run: |
-          mkdir -p ./build-outputs
-          echo "${{ steps.verify-apk.outputs.build-status }}" > ./build-outputs/build-status.txt
-          echo "${{ steps.verify-apk.outputs.apk-size }}" > ./build-outputs/apk-size.txt
-          echo "${{ github.event.pull_request.number }}" > ./build-outputs/pr-number.txt
-          echo "${{ github.event.pull_request.head.sha }}" > ./build-outputs/commit-sha.txt
-          echo "discord" > ./build-outputs/workflow-type.txt
-
-      - name: Upload build outputs
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
         with:
-          name: build-outputs-${{ github.run_id }}
-          path: ./build-outputs/
-          retention-days: 1
+          script: |
+            const pr_number = context.payload.pull_request.number;
+            const build_status = '${{ steps.verify-apk.outputs.build-status }}';
+            const apk_size = '${{ steps.verify-apk.outputs.apk-size }}';
+            const workflow_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const short_sha = context.payload.pull_request.head.sha.substring(0, 7);
+            const run_number = context.runNumber;
+            const timestamp = new Date().toLocaleString('en-US', { 
+              timeZone: 'UTC',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              timeZoneName: 'short'
+            });
+            
+            let comment_body = '';
+            
+            if (build_status === 'success') {
+              comment_body = `## 🚀 APK Build #${run_number} Successful!\n\n` +
+                `✅ **Build Status:** Success\n` +
+                `📦 **APK Size:** ${apk_size}\n` +
+                `🔨 **Commit:** \`${short_sha}\`\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n` +
+                `🕒 **Build Time:** ${timestamp}\n\n` +
+                `### 📥 Download APK\n` +
+                `You can download the APK from the [workflow artifacts](${workflow_url}).\n\n` +
+                `**Artifact Name:** \`tetra-pr-${pr_number}-apk\`\n\n` +
+                `### 🔧 Testing Instructions\n` +
+                `1. Click on the workflow link above\n` +
+                `2. Scroll down to the "Artifacts" section\n` +
+                `3. Download the APK file\n` +
+                `4. Install on your Android device or emulator\n\n` +
+                `*Note: The APK will be available for 7 days.*`;
+            } else {
+              comment_body = `## ❌ APK Build #${run_number} Failed\n\n` +
+                `💥 **Build Status:** Failed\n` +
+                `🔨 **Commit:** \`${short_sha}\`\n` +
+                `👤 **Author:** @${context.payload.pull_request.user.login}\n` +
+                `🕒 **Build Time:** ${timestamp}\n\n` +
+                `Please check the [build logs](${workflow_url}) for more details.`;
+            }
+            
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr_number,
+                body: comment_body
+              });
+              console.log(`Successfully commented on PR #${pr_number}`);
+            } catch (error) {
+              console.error(`Failed to comment on PR: ${error.message}`);
+              // Don't fail the workflow if commenting fails (e.g., on fork PRs)
+            }
+
+      - name: Update PR status check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const build_status = '${{ steps.verify-apk.outputs.build-status }}';
+            const state = build_status === 'success' ? 'success' : 'failure';
+            const description = build_status === 'success' 
+              ? 'APK built successfully' 
+              : 'APK build failed';
+            
+            try {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: context.payload.pull_request.head.sha,
+                state: state,
+                description: description,
+                context: 'APK Build',
+                target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              });
+              console.log(`Successfully updated commit status`);
+            } catch (error) {
+              console.error(`Failed to update commit status: ${error.message}`);
+              // Don't fail the workflow if status update fails
+            }
 
       - name: Discord Success Notification
-        if: success() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != ''
+        if: ${{ success() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -126,14 +198,14 @@ jobs:
             👤 **Author:** ${{ github.event.pull_request.user.login }}
             🚀 **Commit:** `${{ github.event.pull_request.head.sha }}`
             
-            📥 **Download:** The APK will be available in the PR comments shortly
+            📥 **Download:** The APK is available in the PR comments and workflow artifacts
             🔗 **PR Link:** ${{ github.event.pull_request.html_url }}
             🔗 **Artifacts:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
             The APK is ready for testing! 🎉
 
       - name: Discord Failure Notification
-        if: failure() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != ''
+        if: ${{ failure() && vars.ENABLE_DISCORD_NOTIFICATIONS == 'true' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
