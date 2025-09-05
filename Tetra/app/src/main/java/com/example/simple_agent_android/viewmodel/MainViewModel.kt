@@ -260,6 +260,12 @@ class MainViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
+                // Validate API key first
+                if (_openAiKey.value.trim().isEmpty()) {
+                    onResult(false, "❌ API key is required")
+                    return@launch
+                }
+                
                 // Clean base URL (remove trailing slash, default to OpenAI if empty)
                 val cleanBaseUrl = _openAiBaseUrl.value.trim()
                     .removePrefix("http://").removePrefix("https://")
@@ -271,6 +277,8 @@ class MainViewModel : ViewModel() {
                 val cleanModel = _openAiModel.value.trim()
                     .let { if (it.isEmpty()) "gpt-4o" else it }
                 
+                android.util.Log.d("TestLLM", "Testing with URL: $cleanBaseUrl, Model: $cleanModel")
+                
                 val llmClient = LLMClient(_openAiKey.value, cleanBaseUrl, cleanModel)
                 
                 // Simple test message without tools
@@ -280,22 +288,37 @@ class MainViewModel : ViewModel() {
                 
                 val response = llmClient.sendSimple(testMessages)
                 
-                if (response != null && !response.has("error")) {
-                    onResult(true, "✅ LLM connection successful!")
-                } else {
-                    val errorMsg = if (response?.has("error") == true) {
-                        val errorValue = response.get("error")
-                        when {
-                            errorValue is String && errorValue.isNotBlank() -> errorValue
-                            else -> "Unknown LLM error"
-                        }
-                    } else {
-                        "No response from LLM"
+                android.util.Log.d("TestLLM", "Response received: ${response != null}")
+                if (response != null) {
+                    android.util.Log.d("TestLLM", "Response has error: ${response.has("error")}")
+                    android.util.Log.d("TestLLM", "Response keys: ${response.keys().asSequence().toList()}")
+                }
+                
+                when {
+                    response == null -> {
+                        onResult(false, "❌ No response from API - check your network connection")
                     }
-                    onResult(false, "❌ LLM Error: $errorMsg")
+                    response.has("error") -> {
+                        val errorValue = response.get("error")
+                        val errorMsg = when {
+                            errorValue is String && errorValue.isNotBlank() -> errorValue
+                            else -> "Unknown API error"
+                        }
+                        onResult(false, "❌ $errorMsg")
+                    }
+                    response.has("choices") -> {
+                        // Valid OpenAI response format
+                        onResult(true, "✅ LLM connection successful!")
+                    }
+                    else -> {
+                        // Unexpected response format
+                        android.util.Log.w("TestLLM", "Unexpected response format: $response")
+                        onResult(false, "❌ Unexpected response format from API")
+                    }
                 }
             } catch (e: Exception) {
-                onResult(false, "❌ LLM Test Failed: ${e.message}")
+                android.util.Log.e("TestLLM", "Exception during test", e)
+                onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}")
             } finally {
                 _testingLLM.value = false
             }

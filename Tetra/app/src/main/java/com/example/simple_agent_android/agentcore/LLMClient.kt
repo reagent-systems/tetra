@@ -126,26 +126,27 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
             endpoint = apiUrl,
             operation = "chat_completion_simple"
         ) {
-            val startTime = System.currentTimeMillis()
-            
-            val json = JSONObject().apply {
-                put("model", model)
-                put("messages", JSONArray(messages.map { JSONObject(it) }))
-                // No tools for simple requests
-            }
-            
-            val requestBody = json.toString()
-            val body = requestBody.toRequestBody("application/json".toMediaTypeOrNull())
-            val request = Request.Builder()
-                .url(apiUrl)
-                .post(body)
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .build()
+            try {
+                val startTime = System.currentTimeMillis()
                 
-            android.util.Log.i("LLMClient", "Simple Request payload: ${requestBody.take(1000)}")
-            
-            client.newCall(request).execute().use { response ->
+                val json = JSONObject().apply {
+                    put("model", model)
+                    put("messages", JSONArray(messages.map { JSONObject(it) }))
+                    // No tools for simple requests
+                }
+                
+                val requestBody = json.toString()
+                val body = requestBody.toRequestBody("application/json".toMediaTypeOrNull())
+                val request = Request.Builder()
+                    .url(apiUrl)
+                    .post(body)
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                    
+                android.util.Log.i("LLMClient", "Simple Request payload: ${requestBody.take(1000)}")
+                
+                client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 val duration = System.currentTimeMillis() - startTime
                 
@@ -297,6 +298,24 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
                 )
                 
                 return@sentryApiCall JSONObject(responseBody)
+            }
+            } catch (networkException: Exception) {
+                // Handle network-level exceptions (connection issues, timeouts, etc.)
+                android.util.Log.e("LLMClient", "Network exception in sendSimple", networkException)
+                
+                val errorJson = JSONObject()
+                val errorMessage = when {
+                    networkException.message?.contains("timeout", ignoreCase = true) == true -> 
+                        "Connection timeout - Check your internet connection"
+                    networkException.message?.contains("resolve", ignoreCase = true) == true -> 
+                        "Cannot reach API endpoint - Check the base URL"
+                    networkException.message?.contains("connection", ignoreCase = true) == true -> 
+                        "Connection failed - Check your internet connection"
+                    else -> "Network error: ${networkException.message ?: "Unknown connection issue"}"
+                }
+                errorJson.put("error", errorMessage)
+                errorJson.put("network_error", true)
+                return@sentryApiCall errorJson
             }
         }
     }
