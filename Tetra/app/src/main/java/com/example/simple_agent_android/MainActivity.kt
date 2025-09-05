@@ -220,7 +220,13 @@ class MainActivity : ComponentActivity() {
                                     Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
                                 }
                             },
-                            testingLLM = viewModel.testingLLM.value
+                            testingLLM = viewModel.testingLLM.value,
+                            onTestLLMWithTools = {
+                                viewModel.testLLMConnectionWithTools { success, message ->
+                                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            testingLLMWithTools = viewModel.testingLLMWithTools.value
                         )
                         "feedback" -> FeedbackScreen(viewModel)
                         "about" -> AboutScreen()

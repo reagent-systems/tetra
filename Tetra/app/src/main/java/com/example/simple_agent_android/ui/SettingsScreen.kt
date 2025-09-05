@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
@@ -41,7 +42,9 @@ fun SettingsScreen(
     completionScreenEnabled: Boolean = true,
     onCompletionScreenToggle: (Boolean) -> Unit = {},
     onTestLLM: (() -> Unit)? = null,
-    testingLLM: Boolean = false
+    testingLLM: Boolean = false,
+    onTestLLMWithTools: (() -> Unit)? = null,
+    testingLLMWithTools: Boolean = false
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -259,6 +262,40 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "Test LLM Connection",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Test LLM with Tools Button (same as agent uses)
+                onTestLLMWithTools?.let { testWithToolsFunction ->
+                    OutlinedButton(
+                        onClick = { if (!testingLLMWithTools) testWithToolsFunction() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !testingLLMWithTools && openAiKey.isNotBlank(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (testingLLMWithTools) ReagentGray else ReagentGreen
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (testingLLMWithTools) {
+                            Text(
+                                "Testing LLM with Tools...",
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                tint = ReagentGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Test LLM with Tools",
                                 fontWeight = FontWeight.Medium
                             )
                         }
