@@ -278,15 +278,19 @@ class MainViewModel : ViewModel() {
                     mapOf("role" to "user", "content" to "just tell hi")
                 )
                 
-                val response = llmClient.sendWithTools(testMessages)
+                val response = llmClient.sendSimple(testMessages)
                 
                 if (response != null && !response.has("error")) {
                     onResult(true, "✅ LLM connection successful!")
                 } else {
                     val errorMsg = if (response?.has("error") == true) {
-                        response.getString("error")
+                        val errorValue = response.get("error")
+                        when {
+                            errorValue is String && errorValue.isNotBlank() -> errorValue
+                            else -> "Unknown LLM error"
+                        }
                     } else {
-                        "Unknown LLM error"
+                        "No response from LLM"
                     }
                     onResult(false, "❌ LLM Error: $errorMsg")
                 }
