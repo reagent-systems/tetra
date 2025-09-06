@@ -7,7 +7,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import com.example.simple_agent_android.sentry.ApiErrorTracker
-import com.example.simple_agent_android.sentry.sentryApiCall
 
 class LLMClient(private val apiKey: String, private val baseUrl: String = "https://api.openai.com", private val model: String = "gpt-4o") {
     private val client = OkHttpClient()
@@ -320,8 +319,32 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
                 networkException is javax.net.ssl.SSLException ->
                     "SSL/TLS error - Security certificate issue with ${apiUrl}"
                 else -> {
-                    val msg = networkException.message ?: "Unknown network issue"
-                    "Network error: $msg"
+                    // Provide more specific error messages based on exception type and message (sendSimple)
+                    val specificMessage = when {
+                        networkException::class.java.simpleName.contains("SSLHandshakeException") ->
+                            "SSL handshake failed - Certificate verification error"
+                        networkException::class.java.simpleName.contains("SocketException") ->
+                            "Socket error - Network connection interrupted"
+                        networkException::class.java.simpleName.contains("IOException") ->
+                            "I/O error - Failed to read/write network data"
+                        networkException::class.java.simpleName.contains("HttpException") ->
+                            "HTTP protocol error - Invalid response from server"
+                        networkException.message?.contains("failed to connect", ignoreCase = true) == true ->
+                            "Connection failed - Cannot reach ${apiUrl}"
+                        networkException.message?.contains("network", ignoreCase = true) == true ->
+                            "Network connectivity issue - Check your internet connection"
+                        networkException.message?.contains("host", ignoreCase = true) == true ->
+                            "Host resolution error - Cannot find server ${apiUrl}"
+                        else -> {
+                            val msg = networkException.message
+                            if (msg.isNullOrBlank()) {
+                                "Connection error - ${networkException::class.java.simpleName}"
+                            } else {
+                                "Connection error: $msg"
+                            }
+                        }
+                    }
+                    specificMessage
                 }
             }
             errorJson.put("error", errorMessage)
@@ -543,8 +566,32 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
                 networkException is javax.net.ssl.SSLException ->
                     "SSL/TLS error - Security certificate issue with ${apiUrl}"
                 else -> {
-                    val msg = networkException.message ?: "Unknown network issue"
-                    "Network error: $msg"
+                    // Provide more specific error messages based on exception type and message (sendWithTools)
+                    val specificMessage = when {
+                        networkException::class.java.simpleName.contains("SSLHandshakeException") ->
+                            "SSL handshake failed - Certificate verification error"
+                        networkException::class.java.simpleName.contains("SocketException") ->
+                            "Socket error - Network connection interrupted"
+                        networkException::class.java.simpleName.contains("IOException") ->
+                            "I/O error - Failed to read/write network data"
+                        networkException::class.java.simpleName.contains("HttpException") ->
+                            "HTTP protocol error - Invalid response from server"
+                        networkException.message?.contains("failed to connect", ignoreCase = true) == true ->
+                            "Connection failed - Cannot reach ${apiUrl}"
+                        networkException.message?.contains("network", ignoreCase = true) == true ->
+                            "Network connectivity issue - Check your internet connection"
+                        networkException.message?.contains("host", ignoreCase = true) == true ->
+                            "Host resolution error - Cannot find server ${apiUrl}"
+                        else -> {
+                            val msg = networkException.message
+                            if (msg.isNullOrBlank()) {
+                                "Connection error - ${networkException::class.java.simpleName}"
+                            } else {
+                                "Connection error: $msg"
+                            }
+                        }
+                    }
+                    specificMessage
                 }
             }
             errorJson.put("error", errorMessage)
