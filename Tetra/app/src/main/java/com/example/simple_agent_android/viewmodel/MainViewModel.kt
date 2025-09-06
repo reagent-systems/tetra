@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.os.Handler
 import android.os.Looper
 
@@ -263,7 +264,7 @@ class MainViewModel : ViewModel() {
             try {
                 // Validate API key first
                 if (_openAiKey.value.trim().isEmpty()) {
-                    onResult(false, "❌ API key is required")
+                    withContext(Dispatchers.Main) { onResult(false, "❌ API key is required") }
                     return@launch
                 }
                 
@@ -297,7 +298,7 @@ class MainViewModel : ViewModel() {
                 
                 when {
                     response == null -> {
-                        onResult(false, "❌ No response from API - check your network connection")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ No response from API - check your network connection") }
                     }
                     response.has("error") -> {
                         val errorValue = response.get("error")
@@ -305,23 +306,25 @@ class MainViewModel : ViewModel() {
                             errorValue is String && errorValue.isNotBlank() -> errorValue
                             else -> "Unknown API error"
                         }
-                        onResult(false, "❌ $errorMsg")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ $errorMsg") }
                     }
                     response.has("choices") -> {
                         // Valid OpenAI response format
-                        onResult(true, "✅ LLM connection successful!")
+                        withContext(Dispatchers.Main) { onResult(true, "✅ LLM connection successful!") }
                     }
                     else -> {
                         // Unexpected response format
                         android.util.Log.w("TestLLM", "Unexpected response format: $response")
-                        onResult(false, "❌ Unexpected response format from API")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ Unexpected response format from API") }
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("TestLLM", "Exception during test", e)
-                onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}")
+                withContext(Dispatchers.Main) { onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}") }
             } finally {
-                _testingLLM.value = false
+                withContext(Dispatchers.Main) {
+                    _testingLLM.value = false
+                }
             }
         }
     }
@@ -339,7 +342,7 @@ class MainViewModel : ViewModel() {
             try {
                 // Validate API key first
                 if (_openAiKey.value.trim().isEmpty()) {
-                    onResult(false, "❌ API key is required")
+                    withContext(Dispatchers.Main) { onResult(false, "❌ API key is required") }
                     return@launch
                 }
                 
@@ -386,7 +389,7 @@ For this test, just respond with "hi" - no function calls needed.""")
                 
                 when {
                     response == null -> {
-                        onResult(false, "❌ No response from API - check your network connection")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ No response from API - check your network connection") }
                     }
                     response.has("error") -> {
                         val errorValue = response.get("error")
@@ -394,23 +397,25 @@ For this test, just respond with "hi" - no function calls needed.""")
                             errorValue is String && errorValue.isNotBlank() -> errorValue
                             else -> "Unknown API error"
                         }
-                        onResult(false, "❌ $errorMsg")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ $errorMsg") }
                     }
                     response.has("choices") -> {
                         // Valid OpenAI response format
-                        onResult(true, "✅ LLM connection with tools successful!")
+                        withContext(Dispatchers.Main) { onResult(true, "✅ LLM connection with tools successful!") }
                     }
                     else -> {
                         // Unexpected response format
                         android.util.Log.w("TestLLMWithTools", "Unexpected response format: $response")
-                        onResult(false, "❌ Unexpected response format from API")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ Unexpected response format from API") }
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("TestLLMWithTools", "Exception during test", e)
-                onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}")
+                withContext(Dispatchers.Main) { onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}") }
             } finally {
-                _testingLLMWithTools.value = false
+                withContext(Dispatchers.Main) {
+                    _testingLLMWithTools.value = false
+                }
             }
         }
     }

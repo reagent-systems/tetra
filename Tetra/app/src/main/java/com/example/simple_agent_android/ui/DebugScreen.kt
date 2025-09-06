@@ -40,6 +40,7 @@ import com.example.simple_agent_android.ui.theme.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import com.example.simple_agent_android.utils.LogManager
+import com.example.simple_agent_android.notification.NotificationHelper
 
 @Composable
 fun DebugScreen(
@@ -83,7 +84,7 @@ fun DebugScreen(
             
             val logContent = LogManager.getFullLog()
             if (logContent.isBlank()) {
-                Toast.makeText(context, "No logs to export", Toast.LENGTH_SHORT).show()
+                NotificationHelper.showToast(context, "No logs to export", Toast.LENGTH_SHORT)
                 return
             }
             
@@ -99,17 +100,17 @@ fun DebugScreen(
             
             // Verify file was created and has content
             if (file.exists() && file.length() > 0) {
-                Toast.makeText(context, "Logs exported to Downloads:\n${file.name}", Toast.LENGTH_LONG).show()
+                NotificationHelper.showToast(context, "Logs exported to Downloads:\n${file.name}", Toast.LENGTH_LONG)
             } else {
-                Toast.makeText(context, "Failed to create log file", Toast.LENGTH_LONG).show()
+                NotificationHelper.showToast(context, "Failed to create log file", Toast.LENGTH_LONG)
             }
             
         } catch (e: SecurityException) {
-            Toast.makeText(context, "Permission denied: Cannot write to Downloads folder", Toast.LENGTH_LONG).show()
+            NotificationHelper.showToast(context, "Permission denied: Cannot write to Downloads folder", Toast.LENGTH_LONG)
         } catch (e: java.io.IOException) {
-            Toast.makeText(context, "IO Error: ${e.message}", Toast.LENGTH_LONG).show()
+            NotificationHelper.showToast(context, "IO Error: ${e.message}", Toast.LENGTH_LONG)
         } catch (e: Exception) {
-            Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            NotificationHelper.showToast(context, "Export failed: ${e.message}", Toast.LENGTH_LONG)
         }
     }
     
@@ -121,7 +122,7 @@ fun DebugScreen(
         if (isGranted) {
             exportLogsToFile(context)
         } else {
-            Toast.makeText(context, "Storage permission required to export logs to Downloads folder", Toast.LENGTH_LONG).show()
+            NotificationHelper.showToast(context, "Storage permission required to export logs to Downloads folder", Toast.LENGTH_LONG)
         }
     }
 
@@ -402,7 +403,7 @@ fun DebugScreen(
                         try {
                             com.example.simple_agent_android.accessibility.service.BoundingBoxAccessibilityService.testCompletionScreen()
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            NotificationHelper.showToast(context, "Error: ${e.message}", Toast.LENGTH_SHORT)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -522,4 +523,4 @@ fun DebugScreen(
         
         Spacer(modifier = Modifier.height(20.dp))
     }
-} 
+}

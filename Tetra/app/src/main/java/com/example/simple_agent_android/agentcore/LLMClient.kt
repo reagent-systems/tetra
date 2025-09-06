@@ -1,16 +1,21 @@
 package com.example.simple_agent_android.agentcore
 
+import com.example.simple_agent_android.sentry.ApiErrorTracker
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import com.example.simple_agent_android.sentry.ApiErrorTracker
+import java.util.concurrent.TimeUnit
 
-class LLMClient(private val apiKey: String, private val baseUrl: String = "https://api.openai.com", private val model: String = "gpt-4o") {
-    private val client = OkHttpClient()
-    private val apiUrl = "$baseUrl/v1/chat/completions"
+class LLMClient(private val apiKey: String, private val baseUrl: String = "https://api.openai.com/v1", private val model: String = "gpt-4o") {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+    private val apiUrl = "$baseUrl/chat/completions"
 
     // Tool definitions for OpenAI function calling
     private val tools = JSONArray(listOf(
@@ -600,4 +605,4 @@ class LLMClient(private val apiKey: String, private val baseUrl: String = "https
             return errorJson
         }
     }
-} 
+}
