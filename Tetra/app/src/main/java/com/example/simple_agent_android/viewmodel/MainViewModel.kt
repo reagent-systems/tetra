@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import android.os.Handler
 import android.os.Looper
 
@@ -258,7 +259,7 @@ class MainViewModel : ViewModel() {
         
         _testingLLM.value = true
         
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 // Validate API key first
                 if (_openAiKey.value.trim().isEmpty()) {
@@ -334,7 +335,7 @@ class MainViewModel : ViewModel() {
         
         _testingLLMWithTools.value = true
         
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 // Validate API key first
                 if (_openAiKey.value.trim().isEmpty()) {
