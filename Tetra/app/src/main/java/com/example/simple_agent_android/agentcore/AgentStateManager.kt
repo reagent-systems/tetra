@@ -23,7 +23,7 @@ object AgentStateManager {
 
     fun isAgentRunning(): Boolean = _agentRunning.value
 
-    fun startAgent(instruction: String, apiKey: String, appContext: Context, onOutput: ((String) -> Unit)? = null) {
+    fun startAgent(instruction: String, apiKey: String, appContext: Context, baseUrl: String = "https://api.openai.com", model: String = "gpt-4o", onOutput: ((String) -> Unit)? = null) {
         if (_agentRunning.value) {
             // Agent is already running, don't start again
             return
@@ -38,6 +38,8 @@ object AgentStateManager {
             instruction = instruction,
             apiKey = apiKey,
             context = appContext,
+            baseUrl = baseUrl,
+            model = model,
             onAgentStopped = {
                 stopAgent()
             },

@@ -1,7 +1,7 @@
 name: PR APK Build with Discord
 
 on:
-  pull_request_target:
+  pull_request:
     branches: [ master, main, develop ]
     types: [ opened, synchronize, reopened ]
 
@@ -23,9 +23,8 @@ jobs:
           fetch-depth: 0
 
       - name: Discord Build Started Notification
+        if: false
         uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
             🔨 **PR APK Build Started** 🔨
@@ -153,7 +152,7 @@ jobs:
             });
 
       - name: Discord Success Notification
-        if: success()
+        if: false
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -173,7 +172,7 @@ jobs:
             The APK is ready for testing! 🎉
 
       - name: Discord Failure Notification
-        if: failure()
+        if: false
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

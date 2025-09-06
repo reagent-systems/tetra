@@ -25,7 +25,7 @@ object AgentOrchestrator {
     private var paused: Boolean = false
     private var stopping: Boolean = false
 
-    fun runAgent(instruction: String, apiKey: String, context: Context, onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
+    fun runAgent(instruction: String, apiKey: String, context: Context, baseUrl: String = "https://api.openai.com", model: String = "gpt-4o", onAgentStopped: (() -> Unit)? = null, onOutput: ((String) -> Unit)? = null) {
         stopping = false
         
         // Track agent start
@@ -126,7 +126,7 @@ Focus on completing the user's request efficiently and accurately.""")
                         }
                         coroutineContext.ensureActive()
                         
-                        val llm = LLMClient(apiKey)
+                        val llm = LLMClient(apiKey, baseUrl, model)
                         val response = llm.sendWithTools(messages)
                         
                         if (stopping) {
@@ -138,9 +138,10 @@ Focus on completing the user's request efficiently and accurately.""")
                         LogManager.log(TAG, "Step $step: LLM response: $response")
                         
                         if (response == null || response.has("error")) {
-                            val errorMessage = response?.optString("error") ?: "Unknown LLM error"
+                            val errorMessage = response?.optString("error")?.takeIf { it.isNotBlank() } ?: "Unknown LLM error"
+                            LogManager.log(TAG, "LLM error detected. Response: $response", LogLevel.ERROR)
                             LogManager.log(TAG, "LLM error: $errorMessage", LogLevel.ERROR)
-                            onOutput?.invoke("❌ LLM error: $errorMessage")
+                            onOutput?.invoke("❌ LLM Error: $errorMessage")
                             break
                         }
                         

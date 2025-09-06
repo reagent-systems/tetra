@@ -201,6 +201,10 @@ class MainActivity : ComponentActivity() {
                         "settings" -> SettingsScreen(
                             openAiKey = viewModel.openAiKey.value,
                             onOpenAiKeyChange = viewModel::updateOpenAiKey,
+                            openAiBaseUrl = viewModel.openAiBaseUrl.value,
+                            onOpenAiBaseUrlChange = viewModel::updateOpenAiBaseUrl,
+                            openAiModel = viewModel.openAiModel.value,
+                            onOpenAiModelChange = viewModel::updateOpenAiModel,
                             onSave = { viewModel.saveSettings(this@MainActivity) },
                             saved = viewModel.settingsSaved.value,
                             onCheckForUpdates = {
@@ -210,7 +214,19 @@ class MainActivity : ComponentActivity() {
                             },
                             onRedoOnboarding = viewModel::startOnboarding,
                             completionScreenEnabled = viewModel.completionScreenEnabled.value,
-                            onCompletionScreenToggle = viewModel::updateCompletionScreenEnabled
+                            onCompletionScreenToggle = viewModel::updateCompletionScreenEnabled,
+                            onTestLLM = {
+                                viewModel.testLLMConnection { success, message ->
+                                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            testingLLM = viewModel.testingLLM.value,
+                            onTestLLMWithTools = {
+                                viewModel.testLLMConnectionWithTools { success, message ->
+                                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            testingLLMWithTools = viewModel.testingLLMWithTools.value
                         )
                         "feedback" -> FeedbackScreen(viewModel)
                         "about" -> AboutScreen()

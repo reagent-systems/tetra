@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 
@@ -29,12 +31,20 @@ import androidx.compose.ui.text.input.VisualTransformation
 fun SettingsScreen(
     openAiKey: String,
     onOpenAiKeyChange: (String) -> Unit,
+    openAiBaseUrl: String,
+    onOpenAiBaseUrlChange: (String) -> Unit,
+    openAiModel: String,
+    onOpenAiModelChange: (String) -> Unit,
     onSave: () -> Unit,
     saved: Boolean,
     onCheckForUpdates: () -> Unit,
     onRedoOnboarding: () -> Unit = {},
     completionScreenEnabled: Boolean = true,
-    onCompletionScreenToggle: (Boolean) -> Unit = {}
+    onCompletionScreenToggle: (Boolean) -> Unit = {},
+    onTestLLM: (() -> Unit)? = null,
+    testingLLM: Boolean = false,
+    onTestLLMWithTools: (() -> Unit)? = null,
+    testingLLMWithTools: Boolean = false
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -137,6 +147,78 @@ fun SettingsScreen(
                     )
                 )
                 
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = openAiBaseUrl,
+                    onValueChange = onOpenAiBaseUrlChange,
+                    label = { 
+                        Text(
+                            "OpenAI Base URL",
+                            style = MaterialTheme.typography.bodyMedium
+                        ) 
+                    },
+                    placeholder = {
+                        Text(
+                            "https://api.openai.com",
+                            color = ReagentGray.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ReagentGreen,
+                        unfocusedBorderColor = ReagentGray,
+                        cursorColor = ReagentGreen,
+                        focusedLabelColor = ReagentGreen,
+                        unfocusedLabelColor = ReagentGray
+                    )
+                )
+                
+                Text(
+                    text = "Use default for OpenAI, or enter a custom endpoint URL for compatible APIs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = openAiModel,
+                    onValueChange = onOpenAiModelChange,
+                    label = { 
+                        Text(
+                            "Model Name",
+                            style = MaterialTheme.typography.bodyMedium
+                        ) 
+                    },
+                    placeholder = {
+                        Text(
+                            "gpt-4o",
+                            color = ReagentGray.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ReagentGreen,
+                        unfocusedBorderColor = ReagentGray,
+                        cursorColor = ReagentGreen,
+                        focusedLabelColor = ReagentGreen,
+                        unfocusedLabelColor = ReagentGray
+                    )
+                )
+                
+                Text(
+                    text = "Specify the AI model to use (e.g., gpt-4o, gpt-4, gpt-3.5-turbo, or custom models)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ReagentGray.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                
                 Spacer(modifier = Modifier.height(20.dp))
                 
                 Button(
@@ -150,6 +232,74 @@ fun SettingsScreen(
                         color = ReagentBlack, 
                         fontWeight = FontWeight.Medium
                     )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Test LLM Button
+                onTestLLM?.let { testFunction ->
+                    OutlinedButton(
+                        onClick = { if (!testingLLM) testFunction() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !testingLLM && openAiKey.isNotBlank(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (testingLLM) ReagentGray else ReagentGreen
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (testingLLM) {
+                            Text(
+                                "Testing LLM Connection...",
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = ReagentGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Test LLM Connection",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Test LLM with Tools Button (same as agent uses)
+                onTestLLMWithTools?.let { testWithToolsFunction ->
+                    OutlinedButton(
+                        onClick = { if (!testingLLMWithTools) testWithToolsFunction() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !testingLLMWithTools && openAiKey.isNotBlank(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (testingLLMWithTools) ReagentGray else ReagentGreen
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (testingLLMWithTools) {
+                            Text(
+                                "Testing LLM with Tools...",
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                tint = ReagentGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Test LLM with Tools",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
                 
                 if (saved) {

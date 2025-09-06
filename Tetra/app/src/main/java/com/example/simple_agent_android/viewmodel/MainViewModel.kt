@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.simple_agent_android.agentcore.AgentStateManager
+import com.example.simple_agent_android.agentcore.LLMClient
 import com.example.simple_agent_android.utils.SharedPrefsUtils
 import com.example.simple_agent_android.utils.OverlayPermissionUtils
 import com.example.simple_agent_android.utils.VoiceInputManager
@@ -22,6 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.os.Handler
 import android.os.Looper
 
@@ -48,11 +51,21 @@ class MainViewModel : ViewModel() {
     private val _openAiKey = mutableStateOf("")
     val openAiKey: State<String> = _openAiKey
     
+    private val _openAiBaseUrl = mutableStateOf("https://api.openai.com")
+    val openAiBaseUrl: State<String> = _openAiBaseUrl
+    
+    private val _openAiModel = mutableStateOf("gpt-4o")
+    val openAiModel: State<String> = _openAiModel
+    
     private val _settingsSaved = mutableStateOf(false)
     val settingsSaved: State<Boolean> = _settingsSaved
     
     private val _completionScreenEnabled = mutableStateOf(true)
     val completionScreenEnabled: State<Boolean> = _completionScreenEnabled
+    
+    // Test LLM State
+    private val _testingLLM = mutableStateOf(false)
+    val testingLLM: State<Boolean> = _testingLLM
     
     // Overlay State
     private val _overlayActive = mutableStateOf(false)
@@ -133,6 +146,8 @@ class MainViewModel : ViewModel() {
     fun initialize(context: Context) {
         // Load saved preferences
         _openAiKey.value = SharedPrefsUtils.getOpenAIKey(context)
+        _openAiBaseUrl.value = SharedPrefsUtils.getOpenAIBaseUrl(context)
+        _openAiModel.value = SharedPrefsUtils.getOpenAIModel(context)
         _verticalOffset.value = SharedPrefsUtils.getVerticalOffset(context)
         _completionScreenEnabled.value = SharedPrefsUtils.isCompletionScreenEnabled(context)
         _overlayActive.value = BoundingBoxAccessibilityService.isOverlayActive()
@@ -205,6 +220,8 @@ class MainViewModel : ViewModel() {
             instruction = _agentInput.value,
             apiKey = _openAiKey.value,
             appContext = context,
+            baseUrl = _openAiBaseUrl.value,
+            model = _openAiModel.value,
             onOutput = { output ->
                 _agentOutput.value += output + "\n"
             }
@@ -222,10 +239,185 @@ class MainViewModel : ViewModel() {
         _openAiKey.value = key
     }
     
+    fun updateOpenAiBaseUrl(baseUrl: String) {
+        _openAiBaseUrl.value = baseUrl
+    }
+    
+    fun updateOpenAiModel(model: String) {
+        _openAiModel.value = model
+    }
+    
     fun saveSettings(context: Context) {
         SharedPrefsUtils.setOpenAIKey(context, _openAiKey.value)
+        SharedPrefsUtils.setOpenAIBaseUrl(context, _openAiBaseUrl.value)
+        SharedPrefsUtils.setOpenAIModel(context, _openAiModel.value)
         SharedPrefsUtils.setCompletionScreenEnabled(context, _completionScreenEnabled.value)
         _settingsSaved.value = true
+    }
+    
+    fun testLLMConnection(onResult: (Boolean, String) -> Unit) {
+        if (_testingLLM.value) return // Prevent multiple tests
+        
+        _testingLLM.value = true
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Validate API key first
+                if (_openAiKey.value.trim().isEmpty()) {
+                    withContext(Dispatchers.Main) { onResult(false, "❌ API key is required") }
+                    return@launch
+                }
+                
+                // Clean base URL (remove trailing slash, default to OpenAI if empty)
+                val cleanBaseUrl = _openAiBaseUrl.value.trim()
+                    .removePrefix("http://").removePrefix("https://")
+                    .removeSuffix("/")
+                    .let { if (it.isEmpty()) "api.openai.com" else it }
+                    .let { "https://$it" }
+                
+                // Clean model name (default to gpt-4o if empty)
+                val cleanModel = _openAiModel.value.trim()
+                    .let { if (it.isEmpty()) "gpt-4o" else it }
+                
+                android.util.Log.d("TestLLM", "Testing with URL: $cleanBaseUrl, Model: $cleanModel")
+                
+                val llmClient = LLMClient(_openAiKey.value, cleanBaseUrl, cleanModel)
+                
+                // Simple test message without tools
+                val testMessages = listOf(
+                    mapOf("role" to "user", "content" to "just tell hi")
+                )
+                
+                val response = llmClient.sendSimple(testMessages)
+                
+                android.util.Log.d("TestLLM", "Response received: ${response != null}")
+                if (response != null) {
+                    android.util.Log.d("TestLLM", "Response has error: ${response.has("error")}")
+                    android.util.Log.d("TestLLM", "Response keys: ${response.keys().asSequence().toList()}")
+                }
+                
+                when {
+                    response == null -> {
+                        withContext(Dispatchers.Main) { onResult(false, "❌ No response from API - check your network connection") }
+                    }
+                    response.has("error") -> {
+                        val errorValue = response.get("error")
+                        val errorMsg = when {
+                            errorValue is String && errorValue.isNotBlank() -> errorValue
+                            else -> "Unknown API error"
+                        }
+                        withContext(Dispatchers.Main) { onResult(false, "❌ $errorMsg") }
+                    }
+                    response.has("choices") -> {
+                        // Valid OpenAI response format
+                        withContext(Dispatchers.Main) { onResult(true, "✅ LLM connection successful!") }
+                    }
+                    else -> {
+                        // Unexpected response format
+                        android.util.Log.w("TestLLM", "Unexpected response format: $response")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ Unexpected response format from API") }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TestLLM", "Exception during test", e)
+                withContext(Dispatchers.Main) { onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}") }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    _testingLLM.value = false
+                }
+            }
+        }
+    }
+    
+    // Test LLM with tools (same as agent uses)
+    private val _testingLLMWithTools = mutableStateOf(false)
+    val testingLLMWithTools: State<Boolean> = _testingLLMWithTools
+    
+    fun testLLMConnectionWithTools(onResult: (Boolean, String) -> Unit) {
+        if (_testingLLMWithTools.value) return // Prevent multiple tests
+        
+        _testingLLMWithTools.value = true
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Validate API key first
+                if (_openAiKey.value.trim().isEmpty()) {
+                    withContext(Dispatchers.Main) { onResult(false, "❌ API key is required") }
+                    return@launch
+                }
+                
+                // Clean base URL (remove trailing slash, default to OpenAI if empty)
+                val cleanBaseUrl = _openAiBaseUrl.value.trim()
+                    .removePrefix("http://").removePrefix("https://")
+                    .removeSuffix("/")
+                    .let { if (it.isEmpty()) "api.openai.com" else it }
+                    .let { "https://$it" }
+                
+                // Clean model name (default to gpt-4o if empty)
+                val cleanModel = _openAiModel.value.trim()
+                    .let { if (it.isEmpty()) "gpt-4o" else it }
+                
+                android.util.Log.d("TestLLMWithTools", "Testing with URL: $cleanBaseUrl, Model: $cleanModel")
+                
+                val llmClient = LLMClient(_openAiKey.value, cleanBaseUrl, cleanModel)
+                
+                // Test messages with the same structure as the agent uses
+                val systemPrompt = mapOf("role" to "system", "content" to """You are an Android automation agent. Your job is to help users complete tasks on their Android device by interacting with the UI.
+
+You have access to these functions:
+- simulate_press(center_x, center_y): Press at coordinates from the screen JSON
+- set_text(x, y, text): Set text in input field at coordinates
+- go_home(): Go to home screen
+- go_back(): Press back button  
+- swipe(startX, startY, endX, endY, duration): Swipe gesture
+- wait_for(duration_ms): Wait for specified time
+- wait_for_element(text, contentDescription, className, timeout_ms): Wait for element to appear
+
+For this test, just respond with "hi" - no function calls needed.""")
+
+                val userInstruction = mapOf("role" to "user", "content" to "just tell hi")
+                
+                val testMessages = listOf(systemPrompt, userInstruction)
+                
+                val response = llmClient.sendWithTools(testMessages)
+                
+                android.util.Log.d("TestLLMWithTools", "Response received: ${response != null}")
+                if (response != null) {
+                    android.util.Log.d("TestLLMWithTools", "Response has error: ${response.has("error")}")
+                    android.util.Log.d("TestLLMWithTools", "Response keys: ${response.keys().asSequence().toList()}")
+                }
+                
+                when {
+                    response == null -> {
+                        withContext(Dispatchers.Main) { onResult(false, "❌ No response from API - check your network connection") }
+                    }
+                    response.has("error") -> {
+                        val errorValue = response.get("error")
+                        val errorMsg = when {
+                            errorValue is String && errorValue.isNotBlank() -> errorValue
+                            else -> "Unknown API error"
+                        }
+                        withContext(Dispatchers.Main) { onResult(false, "❌ $errorMsg") }
+                    }
+                    response.has("choices") -> {
+                        // Valid OpenAI response format
+                        withContext(Dispatchers.Main) { onResult(true, "✅ LLM connection with tools successful!") }
+                    }
+                    else -> {
+                        // Unexpected response format
+                        android.util.Log.w("TestLLMWithTools", "Unexpected response format: $response")
+                        withContext(Dispatchers.Main) { onResult(false, "❌ Unexpected response format from API") }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TestLLMWithTools", "Exception during test", e)
+                withContext(Dispatchers.Main) { onResult(false, "❌ Test failed: ${e.message ?: "Unknown error"}") }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    _testingLLMWithTools.value = false
+                }
+            }
+        }
     }
     
     fun updateCompletionScreenEnabled(enabled: Boolean) {

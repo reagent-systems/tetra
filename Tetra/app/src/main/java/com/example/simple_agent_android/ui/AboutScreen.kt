@@ -227,7 +227,7 @@ fun AboutScreen() {
                 }
                 
                 Text(
-                    text = "Simple Agent Android\nVersion 1.0.0\nBuilt with Jetpack Compose & Material Design 3",
+                    text = "Simple Agent Android\nVersion 1.0.0\nBuild: f38083d\nBuilt with Jetpack Compose & Material Design 3",
                     style = MaterialTheme.typography.bodyMedium,
                     color = ReagentGray,
                     lineHeight = 18.sp
