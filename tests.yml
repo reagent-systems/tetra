@@ -1,16 +1,3 @@
-robo-test:
-  type: robo
-  app: build-outputs/app-debug.apk
-  device:
-    - model: oriole
-      version: 32
-      locale: 'en'
-      orientation: portrait
-    - model: panther
-      version: 33
-      locale: 'en'
-      orientation: portrait
-
 instrumentation-test:
   type: instrumentation
   app: build-outputs/app-debug.apk
