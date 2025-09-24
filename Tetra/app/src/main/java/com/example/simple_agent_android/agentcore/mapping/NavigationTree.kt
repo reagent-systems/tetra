@@ -268,7 +268,18 @@ data class TreeNode(
     val parent: TreeNode?,
     val children: MutableSet<TreeNode>,
     val depth: Int
-)
+) {
+    // Override hashCode and equals to avoid circular reference issues
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+    
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TreeNode) return false
+        return id == other.id
+    }
+}
 
 data class TreeStatistics(
     val totalNodes: Int,
