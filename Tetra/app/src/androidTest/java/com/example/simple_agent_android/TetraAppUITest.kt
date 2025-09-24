@@ -9,6 +9,7 @@ import androidx.test.uiautomator.Until
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.Assert.assertTrue
 
 @RunWith(AndroidJUnit4::class)
 class TetraAppUITest {
@@ -33,7 +34,7 @@ class TetraAppUITest {
     fun testAppLaunch() {
         // Verify the app launched successfully
         val appElement = device.wait(Until.hasObject(By.pkg("com.example.simple_agent_android")), 5000)
-        assert(appElement)
+        assertTrue("App should launch successfully", appElement)
     }
 
     @Test
@@ -43,10 +44,11 @@ class TetraAppUITest {
 
         // Check for key UI elements
         val instructionField = device.findObject(UiSelector().className("android.widget.EditText"))
-        assert(instructionField.exists())
+        assertTrue("Instruction field should exist", instructionField.exists())
 
         // Look for agent control buttons
-        val startButton = device.findObject(UiSelector().textContains("Start") or UiSelector().textContains("Run"))
+        val startButton = device.findObject(UiSelector().textContains("Start"))
+        val runButton = device.findObject(UiSelector().textContains("Run"))
         // Button might not be visible initially, that's ok
     }
 
@@ -56,11 +58,11 @@ class TetraAppUITest {
         val instructionField = device.findObject(UiSelector().className("android.widget.EditText"))
         if (instructionField.exists()) {
             instructionField.clearTextField()
-            instructionField.text = "Open settings"
+            instructionField.setText("Open settings")
             Thread.sleep(1000)
 
             // Verify text was entered
-            assert(instructionField.text.contains("settings"))
+            assertTrue("Text should be entered", instructionField.text.contains("settings"))
         }
     }
 
@@ -76,7 +78,8 @@ class TetraAppUITest {
             Thread.sleep(2000)
 
             // Verify we're in settings
-            val settingsScreen = device.findObject(UiSelector().textContains("API Key") or UiSelector().textContains("OpenAI"))
+            val apiKeyField = device.findObject(UiSelector().textContains("API Key"))
+            val openaiField = device.findObject(UiSelector().textContains("OpenAI"))
             // Settings screen should have API key field
         }
     }
@@ -87,7 +90,8 @@ class TetraAppUITest {
         device.wait(Until.hasObject(By.pkg("com.example.simple_agent_android")), 3000)
 
         // Look for accessibility-related UI elements
-        val accessibilityText = device.findObject(UiSelector().textContains("Accessibility") or UiSelector().textContains("Enable"))
+        val accessibilityText = device.findObject(UiSelector().textContains("Accessibility"))
+        val enableText = device.findObject(UiSelector().textContains("Enable"))
         // This test verifies the accessibility flow is working
     }
 
@@ -100,22 +104,25 @@ class TetraAppUITest {
         val instructionField = device.findObject(UiSelector().className("android.widget.EditText"))
         if (instructionField.exists()) {
             instructionField.clearTextField()
-            instructionField.text = "Go to home screen"
+            instructionField.setText("Go to home screen")
             Thread.sleep(1000)
 
             // Look for run/start button
-            val runButton = device.findObject(
-                UiSelector().textContains("Start") or
-                UiSelector().textContains("Run") or
-                UiSelector().className("android.widget.Button")
-            )
+            var runButton = device.findObject(UiSelector().textContains("Start"))
+            if (!runButton.exists()) {
+                runButton = device.findObject(UiSelector().textContains("Run"))
+            }
+            if (!runButton.exists()) {
+                runButton = device.findObject(UiSelector().className("android.widget.Button"))
+            }
 
             if (runButton.exists()) {
                 runButton.click()
                 Thread.sleep(3000)
 
                 // Check for agent execution feedback
-                val executionFeedback = device.findObject(UiSelector().textContains("Starting") or UiSelector().textContains("Agent"))
+                val executionFeedback = device.findObject(UiSelector().textContains("Starting"))
+                val agentFeedback = device.findObject(UiSelector().textContains("Agent"))
             }
         }
     }
@@ -142,7 +149,8 @@ class TetraAppUITest {
             Thread.sleep(2000)
 
             // Look for debug controls
-            val overlayButton = device.findObject(UiSelector().textContains("Overlay") or UiSelector().textContains("Bounding"))
+            val overlayButton = device.findObject(UiSelector().textContains("Overlay"))
+            val boundingButton = device.findObject(UiSelector().textContains("Bounding"))
         }
     }
 }
