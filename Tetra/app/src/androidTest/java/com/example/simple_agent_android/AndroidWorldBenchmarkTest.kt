@@ -46,7 +46,7 @@ class AndroidWorldBenchmarkTest {
         val intent = context.packageManager.getLaunchIntentForPackage(PACKAGE_NAME)
         intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(intent)
-        device.wait(Until.hasObject(UiSelector().packageName(PACKAGE_NAME)), TIMEOUT)
+        device.wait(Until.hasObject(androidx.test.uiautomator.By.pkg(PACKAGE_NAME)), TIMEOUT)
     }
 
     private fun inputApiKey(apiKey: String) {
@@ -62,14 +62,13 @@ class AndroidWorldBenchmarkTest {
                 apiKeyField.click()
                 device.waitForIdle()
                 apiKeyField.clearTextField()
-                apiKeyField.text = apiKey
+                apiKeyField.setText(apiKey)
                 device.waitForIdle()
             } else {
                 // Alternative: look for settings button
                 val settingsButton = device.findObject(
                     UiSelector()
                         .descriptionContains("Settings")
-                        .or(UiSelector().textContains("Settings"))
                 )
 
                 if (settingsButton.exists()) {
@@ -85,7 +84,7 @@ class AndroidWorldBenchmarkTest {
                     if (apiField.exists()) {
                         apiField.click()
                         apiField.clearTextField()
-                        apiField.text = apiKey
+                        apiField.setText(apiKey)
                     }
                 }
             }
@@ -101,14 +100,13 @@ class AndroidWorldBenchmarkTest {
                 UiSelector()
                     .className("android.widget.EditText")
                     .descriptionContains("command")
-                    .or(UiSelector().className("android.widget.EditText").textContains("Enter"))
             )
 
             if (commandField.exists()) {
                 commandField.click()
                 device.waitForIdle()
                 commandField.clearTextField()
-                commandField.text = command
+                commandField.setText(command)
                 device.waitForIdle()
 
                 // Look for execute/run button
@@ -116,7 +114,6 @@ class AndroidWorldBenchmarkTest {
                     UiSelector()
                         .textMatches("Run|Execute|Start|Go")
                         .className("android.widget.Button")
-                        .or(UiSelector().descriptionMatches("Run|Execute|Start|Go"))
                 )
 
                 if (executeButton.exists()) {
@@ -140,7 +137,6 @@ class AndroidWorldBenchmarkTest {
                 val completionIndicator = device.findObject(
                     UiSelector()
                         .textMatches(".*[Cc]ompleted?.*|.*[Ff]inished.*|.*[Dd]one.*|.*[Ss]uccess.*")
-                        .or(UiSelector().descriptionMatches(".*[Cc]ompleted?.*|.*[Ff]inished.*|.*[Dd]one.*|.*[Ss]uccess.*"))
                 )
 
                 if (completionIndicator.exists()) {
