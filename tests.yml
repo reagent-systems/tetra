@@ -10,3 +10,42 @@ robo-test:
       version: 33
       locale: 'en'
       orientation: portrait
+
+instrumentation-test:
+  type: instrumentation
+  app: build-outputs/app-debug.apk
+  test: build-outputs/app-debug-androidTest.apk
+  test-targets:
+    - class com.example.simple_agent_android.TetraAppUITest#testAppLaunch
+    - class com.example.simple_agent_android.TetraAppUITest#testHomeScreenElements
+    - class com.example.simple_agent_android.TetraAppUITest#testAgentInstructionInput
+    - class com.example.simple_agent_android.TetraAppUITest#testSettingsNavigation
+    - class com.example.simple_agent_android.TetraAppUITest#testAccessibilityServiceCheck
+    - class com.example.simple_agent_android.TetraAppUITest#testAgentExecution
+    - class com.example.simple_agent_android.TetraAppUITest#testFloatingControls
+    - class com.example.simple_agent_android.TetraAppUITest#testDebugFeatures
+  environment-variables:
+    api_key: $OPENAI_API_KEY
+  device:
+    - model: oriole
+      version: 32
+      locale: 'en'
+      orientation: portrait
+    - model: panther
+      version: 33
+      locale: 'en'
+      orientation: portrait
+
+androidworld-benchmark-test:
+  type: instrumentation
+  app: build-outputs/app-debug.apk
+  test: build-outputs/app-debug-androidTest.apk
+  test-targets:
+    - class com.example.simple_agent_android.TetraAppUITest#testAgentExecution
+  environment-variables:
+    api_key: $OPENAI_API_KEY
+  device:
+    - model: panther
+      version: 33
+      locale: 'en'
+      orientation: portrait
