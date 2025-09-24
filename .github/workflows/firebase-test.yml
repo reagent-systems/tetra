@@ -56,35 +56,62 @@ jobs:
         run: chmod +x ./Tetra/gradlew
         working-directory: .
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
         working-directory: ./Tetra
 
-      - name: Verify APK was built
+      - name: Verify APKs were built
         run: |
           if [ -f "Tetra/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "✅ APK built successfully: $(ls -la Tetra/app/build/outputs/apk/debug/app-debug.apk)"
+            echo "✅ Debug APK built successfully: $(ls -la Tetra/app/build/outputs/apk/debug/app-debug.apk)"
             mkdir -p build-outputs
             cp Tetra/app/build/outputs/apk/debug/app-debug.apk build-outputs/
           else
-            echo "❌ APK build failed - checking build directory:"
-            find Tetra/app/build -name "*.apk" || echo "No APK files found"
+            echo "❌ Debug APK build failed"
             exit 1
           fi
 
-      - name: Upload APK artifact
+          if [ -f "Tetra/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk" ]; then
+            echo "✅ Test APK built successfully: $(ls -la Tetra/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk)"
+            cp Tetra/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk build-outputs/
+          else
+            echo "❌ Test APK build failed - checking build directory:"
+            find Tetra/app/build -name "*androidTest*.apk" || echo "No Test APK files found"
+            exit 1
+          fi
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
-          path: build-outputs/app-debug.apk
+          name: debug-apks
+          path: build-outputs/*.apk
 
-      - name: Run tests on Firebase Test Lab
-        id: firebase-test
+      - name: Run Robo tests on Firebase Test Lab
+        id: firebase-robo-test
         uses: asadmansr/Firebase-Test-Lab-Action@v1.0
         with:
           arg-spec: 'tests.yml:robo-test'
         env:
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Run Instrumentation tests on Firebase Test Lab
+        id: firebase-instrumentation-test
+        uses: asadmansr/Firebase-Test-Lab-Action@v1.0
+        with:
+          arg-spec: 'tests.yml:instrumentation-test'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Run AndroidWorld Benchmark tests
+        id: firebase-benchmark-test
+        uses: asadmansr/Firebase-Test-Lab-Action@v1.0
+        with:
+          arg-spec: 'tests.yml:androidworld-benchmark-test'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        continue-on-error: true
 
       - name: Discord Success Notification
         if: success()
@@ -94,9 +121,11 @@ jobs:
         with:
           args: |
             🎉 **Tetra Firebase Test - SUCCESS** 🎉
-            
-            ✅ **Build Status:** APK Built Successfully
-            ✅ **Firebase Test:** All Robo Tests Passed
+
+            ✅ **Build Status:** APKs Built Successfully
+            ✅ **Robo Tests:** ${{ steps.firebase-robo-test.outcome }}
+            ✅ **Instrumentation Tests:** ${{ steps.firebase-instrumentation-test.outcome }}
+            ✅ **Benchmark Tests:** ${{ steps.firebase-benchmark-test.outcome }}
             🚀 **Commit:** `${{ github.sha }}`
             👤 **Author:** ${{ github.actor }}
             🌿 **Branch:** ${{ github.ref_name }}

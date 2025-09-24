@@ -10,3 +10,43 @@ robo-test:
       version: 33
       locale: 'en'
       orientation: portrait
+
+instrumentation-test:
+  type: instrumentation
+  app: build-outputs/app-debug.apk
+  test: build-outputs/app-debug-androidTest.apk
+  test-targets:
+    - class com.example.simple_agent_android.ExampleInstrumentedTest
+    - class com.example.simple_agent_android.AccessibilitySetupTest
+  environment-variables:
+    api_key: $OPENAI_API_KEY
+  device:
+    - model: oriole
+      version: 32
+      locale: 'en'
+      orientation: portrait
+    - model: panther
+      version: 33
+      locale: 'en'
+      orientation: portrait
+
+androidworld-benchmark-test:
+  type: instrumentation
+  app: build-outputs/app-debug.apk
+  test: build-outputs/app-debug-androidTest.apk
+  test-targets:
+    - class com.example.simple_agent_android.AndroidWorldBenchmarkTest#testBenchmarkExecution
+    - class com.example.simple_agent_android.AndroidWorldBenchmarkTest#testSpecificCoordinateInteraction
+  test-setup:
+    account: android.intent.action.ADD_ACCOUNT
+    additional-gservices:
+      - key: android.test.instrumentationrunner.arguments.api_key
+        value: $OPENAI_API_KEY
+  timeout: 45m
+  environment-variables:
+    api_key: $OPENAI_API_KEY
+  device:
+    - model: oriole
+      version: 32
+      locale: 'en'
+      orientation: portrait
