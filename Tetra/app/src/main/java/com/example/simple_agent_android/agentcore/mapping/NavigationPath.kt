@@ -107,7 +107,8 @@ data class Action(
             return Action(
                 type = ActionType.CLICK,
                 targetElement = elementId,
-                coordinates = Coordinates(x, y)
+                coordinates = Coordinates(x, y),
+                text = null
             )
         }
         
@@ -123,7 +124,9 @@ data class Action(
         fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long = 300L): Action {
             return Action(
                 type = ActionType.SWIPE,
+                targetElement = null,
                 coordinates = Coordinates(startX, startY),
+                text = null,
                 duration = duration,
                 parameters = mapOf(
                     "endX" to endX,
