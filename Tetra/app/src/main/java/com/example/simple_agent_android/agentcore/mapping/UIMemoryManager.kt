@@ -165,8 +165,8 @@ object UIMemoryManager {
                         elementFingerprints[elementId]?.let { fingerprint ->
                             val updatedFingerprint = fingerprint.copy(
                                 bounds = fingerprint.bounds.copy(
-                                    left = changes.newPosition?.x ?: fingerprint.bounds.left,
-                                    top = changes.newPosition?.y ?: fingerprint.bounds.top
+                                    left = changes.newPosition?.left ?: fingerprint.bounds.left,
+                                    top = changes.newPosition?.top ?: fingerprint.bounds.top
                                 )
                             )
                             elementFingerprints[elementId] = updatedFingerprint
