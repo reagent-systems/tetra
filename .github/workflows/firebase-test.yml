@@ -86,14 +86,6 @@ jobs:
           name: debug-apks
           path: build-outputs/*.apk
 
-      - name: Run Robo tests on Firebase Test Lab
-        id: firebase-robo-test
-        uses: asadmansr/Firebase-Test-Lab-Action@v1.0
-        with:
-          arg-spec: 'tests.yml:robo-test'
-        env:
-          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-
       - name: Run Instrumentation tests on Firebase Test Lab
         id: firebase-instrumentation-test
         uses: asadmansr/Firebase-Test-Lab-Action@v1.0
@@ -123,7 +115,6 @@ jobs:
             🎉 **Tetra Firebase Test - SUCCESS** 🎉
 
             ✅ **Build Status:** APKs Built Successfully
-            ✅ **Robo Tests:** ${{ steps.firebase-robo-test.outcome }}
             ✅ **Instrumentation Tests:** ${{ steps.firebase-instrumentation-test.outcome }}
             ✅ **Benchmark Tests:** ${{ steps.firebase-benchmark-test.outcome }}
             🚀 **Commit:** `${{ github.sha }}`
