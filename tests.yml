@@ -1,10 +1,13 @@
-instrumentation-test:
+# Main UI functionality tests
+app-ui-test:
   type: instrumentation
   app: build-outputs/app-debug.apk
   test: build-outputs/app-debug-androidTest.apk
   test-targets:
-    - class com.example.simple_agent_android.ExampleInstrumentedTest
-    - class com.example.simple_agent_android.AccessibilitySetupTest
+    - class com.example.simple_agent_android.TetraAppUITest#testAppLaunch
+    - class com.example.simple_agent_android.TetraAppUITest#testHomeScreenElements
+    - class com.example.simple_agent_android.TetraAppUITest#testAgentInstructionInput
+    - class com.example.simple_agent_android.TetraAppUITest#testSettingsNavigation
   environment-variables:
     api_key: $OPENAI_API_KEY
   device:
@@ -17,23 +20,34 @@ instrumentation-test:
       locale: 'en'
       orientation: portrait
 
-androidworld-benchmark-test:
+# Agent execution tests
+agent-execution-test:
   type: instrumentation
   app: build-outputs/app-debug.apk
   test: build-outputs/app-debug-androidTest.apk
   test-targets:
-    - class com.example.simple_agent_android.AndroidWorldBenchmarkTest#testBenchmarkExecution
-    - class com.example.simple_agent_android.AndroidWorldBenchmarkTest#testSpecificCoordinateInteraction
-  test-setup:
-    account: android.intent.action.ADD_ACCOUNT
-    additional-gservices:
-      - key: android.test.instrumentationrunner.arguments.api_key
-        value: $OPENAI_API_KEY
-  timeout: 45m
+    - class com.example.simple_agent_android.TetraAppUITest#testAccessibilityServiceCheck
+    - class com.example.simple_agent_android.TetraAppUITest#testAgentExecution
+    - class com.example.simple_agent_android.TetraAppUITest#testFloatingControls
   environment-variables:
     api_key: $OPENAI_API_KEY
   device:
     - model: oriole
       version: 32
+      locale: 'en'
+      orientation: portrait
+
+# Debug and development features
+debug-features-test:
+  type: instrumentation
+  app: build-outputs/app-debug.apk
+  test: build-outputs/app-debug-androidTest.apk
+  test-targets:
+    - class com.example.simple_agent_android.TetraAppUITest#testDebugFeatures
+  environment-variables:
+    api_key: $OPENAI_API_KEY
+  device:
+    - model: panther
+      version: 33
       locale: 'en'
       orientation: portrait
