@@ -135,6 +135,9 @@ data class Action(
         fun wait(durationMs: Long): Action {
             return Action(
                 type = ActionType.WAIT,
+                targetElement = null,
+                coordinates = null,
+                text = null,
                 duration = durationMs
             )
         }
@@ -142,6 +145,9 @@ data class Action(
         fun goHome(): Action {
             return Action(
                 type = ActionType.NAVIGATION,
+                targetElement = null,
+                coordinates = null,
+                text = null,
                 parameters = mapOf("action" to "home")
             )
         }
@@ -149,6 +155,9 @@ data class Action(
         fun goBack(): Action {
             return Action(
                 type = ActionType.NAVIGATION,
+                targetElement = null,
+                coordinates = null,
+                text = null,
                 parameters = mapOf("action" to "back")
             )
         }
